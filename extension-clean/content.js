@@ -23,6 +23,7 @@
   }
 
   function stop() {
+    if (collecting) { clearInterval(timer.id); collecting = false; }
     speechToken++;
     speechSynthesis.cancel();
     playing = paused = autoPlay = false;
@@ -148,21 +149,33 @@
 
   function tick() {
     const articles = [...document.querySelectorAll('[role="article"][aria-label^="Comment by"]')].filter(node => node.getClientRects().length);
-    let action = false;
+    let fresh = 0;
     for (const article of articles) {
       const more = [...article.querySelectorAll('button,[role="button"]')].filter(node => node.getClientRects().length && clean(node.innerText) === 'See more');
-      if (more.length) { more.forEach(node => node.click()); action = true; continue; }
+      if (more.length) { more.forEach(node => node.click()); continue; }
       const text = clean([...article.querySelectorAll('div[dir="auto"]')].map(node => node.innerText).filter(Boolean).join(' '));
       const key = keyOf(text);
-      if (key && !seen.has(key)) { seen.add(key); queue.push(text); action = true; }
+      if (key && !seen.has(key)) { seen.add(key); queue.push(text); fresh++; }
     }
-    if (action) { render(); if (autoPlay && !playing && !paused) speak(); }
-    const buttons = [...document.querySelectorAll('button,[role="button"]')].filter(node => node.getClientRects().length && /^(?:View more comments|View \d+ repl(?:y|ies))$/i.test(clean(node.innerText)));
-    buttons.slice(0, 3).forEach(node => node.click());
-    const last = articles.at(-1);
-    if (last) last.scrollIntoView({block:'end',behavior:'instant'});
-    else window.scrollTo(0, document.body.scrollHeight);
-    if (Date.now() - timer.started > 75000) finish();
+    if (fresh) { timer.idle = 0; render(); if (autoPlay && !playing && !paused) speak(); }
+    else timer.idle++;
+    if (timer.clicks < 20) {
+      const more = [...document.querySelectorAll('button,[role="button"]')]
+        .find(node => node.getClientRects().length && /^(?:View more comments|View \d+ repl(?:y|ies))$/i.test(clean(node.innerText)));
+      if (more) { more.click(); timer.clicks++; }
+    }
+    if (timer.moves < 8 && timer.idle < 5) {
+      const last = articles.at(-1);
+      for (let pane = last?.parentElement; pane && pane !== document.body; pane = pane.parentElement) {
+        if (pane === document.documentElement || pane === document.scrollingElement) break;
+        if (pane.scrollHeight <= pane.clientHeight + 100 || !/auto|scroll/.test(getComputedStyle(pane).overflowY)) continue;
+        const before = pane.scrollTop;
+        pane.scrollTop = Math.min(pane.scrollHeight, before + pane.clientHeight * .8);
+        if (pane.scrollTop > before) timer.moves++;
+        break;
+      }
+    }
+    if (timer.idle >= 8 || Date.now() - timer.started > 40000 || (timer.clicks >= 20 && timer.moves >= 8)) finish();
   }
 
   function finish() {
@@ -183,7 +196,7 @@
     status('Collecting comments from this post.');
     const sort = [...document.querySelectorAll('button,[role="button"]')].find(node => /^(Most relevant|Newest)$/i.test(clean(node.innerText)));
     if (sort) { sort.click(); setTimeout(() => [...document.querySelectorAll('[role="menuitem"],[role="menu"] *')].find(node => clean(node.innerText).startsWith('All comments'))?.click(), 250); }
-    timer = {started:Date.now(), id:setInterval(tick, 500)};
+    timer = {started:Date.now(), idle:0, clicks:0, moves:0, id:setInterval(tick, 1000)};
     tick();
   }
 
