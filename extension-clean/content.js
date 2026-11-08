@@ -20,6 +20,7 @@
     button('previous').disabled = !queue.length || index === 0;
     button('next').disabled = !queue.length || index === queue.length - 1;
     button('collect').disabled = collecting;
+    button('clear').disabled = !queue.length && !collecting;
   }
 
   function stop() {
@@ -29,6 +30,15 @@
     playing = paused = autoPlay = false;
     status('Playback stopped.');
     render();
+  }
+
+  function clearCollection() {
+    stop();
+    queue.length = 0;
+    seen.clear();
+    index = 0;
+    render();
+    status('Collection cleared. Press Collect and play to start again.');
   }
 
   function speak() {
@@ -121,15 +131,16 @@
       #panel{position:relative;display:flex;flex-direction:column;width:min(340px,calc(100vw - 32px));height:min(315px,calc(100vh - 32px));min-width:260px;min-height:260px;padding:14px;border:1px solid #8ba5c5;border-radius:14px;background:#111b2a;color:#f5f8fc;box-shadow:0 16px 40px #0009;overflow:auto;line-height:1.4}
       header{display:flex;align-items:center;justify-content:space-between;cursor:move;touch-action:none;user-select:none;font-weight:700}#hide{border:0;background:none;color:#c6d6ec}
       #count{margin:10px 0 2px;color:#b9d4fa}#position,#status{font-size:12px;color:#b8c5d6}#comment{flex:1;min-height:40px;overflow:auto;margin:5px 0 10px;white-space:pre-wrap}
-      #collect{width:100%;padding:9px;border:0;border-radius:8px;background:#9fc7ff;color:#10203a;font-weight:700}#copy{margin-top:7px;padding:5px;border:0;background:none;color:#b9d4fa;text-align:left}
+      #actions{display:flex;gap:7px}#collect{flex:1;padding:9px;border:0;border-radius:8px;background:#9fc7ff;color:#10203a;font-weight:700}#clear{padding:9px;border:1px solid #627996;border-radius:8px;background:#24364e;color:#fff}#copy{margin-top:7px;padding:5px;border:0;background:none;color:#b9d4fa;text-align:left}
       nav{display:flex;gap:6px;margin-top:8px}nav button{flex:1;min-width:0;padding:6px 3px;border:1px solid #627996;border-radius:7px;background:#24364e;color:#fff}
       #status{min-height:17px;margin:9px 0 0}#resize{position:absolute;right:3px;bottom:3px;width:20px;height:20px;border:0;background:linear-gradient(135deg,transparent 46%,#8ba5c5 47%,#8ba5c5 56%,transparent 57%);cursor:nwse-resize;touch-action:none}
-    </style><button id="launcher" hidden>Comment reader</button><section id="panel" aria-label="Comment reader controls"><header title="Drag to move"><span>Comment reader</span><button id="hide">Hide</button></header><p id="count"></p><div id="position"></div><div id="comment"></div><button id="collect">Collect and play</button><button id="copy">Copy comments for phone</button><nav><button id="previous">Previous</button><button id="play">Play</button><button id="next">Next</button><button id="stop">Stop</button></nav><p id="status" role="status"></p><button id="resize" aria-label="Drag to resize player" title="Drag to resize"></button></section>`;
+    </style><button id="launcher" hidden>Comment reader</button><section id="panel" aria-label="Comment reader controls"><header title="Drag to move"><span>Comment reader</span><button id="hide">Hide</button></header><p id="count"></p><div id="position"></div><div id="comment"></div><div id="actions"><button id="collect">Collect and play</button><button id="clear">Clear collection</button></div><button id="copy">Copy comments for phone</button><nav><button id="previous">Previous</button><button id="play">Play</button><button id="next">Next</button><button id="stop">Stop</button></nav><p id="status" role="status"></p><button id="resize" aria-label="Drag to resize player" title="Drag to resize"></button></section>`;
     document.documentElement.append(host);
     panel = button('panel');
     button('launcher').onclick = show;
     button('hide').onclick = () => { panel.hidden = true; button('launcher').hidden = false; };
     button('collect').onclick = collect;
+    button('clear').onclick = clearCollection;
     button('play').onclick = toggle;
     button('previous').onclick = () => step(-1);
     button('next').onclick = () => step(1);

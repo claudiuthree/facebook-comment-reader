@@ -8,6 +8,7 @@ Paste or drop any Facebook post URL into the link field. Each post gets its own 
 
 On a Facebook post in Windows Chrome, press the extension icon and **Collect and play**. The extension opens a small on-page player with a loaded count and Previous, Play/Pause, Next, and Stop controls. A **Comment reader** button also appears on post pages so the controls can be reopened. The on-page player speaks comments as they buffer; the full reader site is only needed for phone sharing or saved queues.
 The current mini player selects Facebook's **Newest** comment sort and waits for the selection before it starts collecting. If Facebook does not offer that sort, the player reports this and collects the visible order.
+**Clear collection** stops collection and playback and empties the current queue without changing the saved player size or position.
 Drag the player by its top bar to move it. Drag its lower right corner to resize it. The size and position are remembered on Facebook.
 The mini player ZIP omits the previous background tab automation after Microsoft Defender flagged that script. A later smaller build was needed because Defender also blocked the first mini package on download. The current package was locally scanned with Defender but has not yet been confirmed as downloadable in Chrome. It does not open or close Facebook tabs from links pasted into the reader. The earlier full extension source remains in `extension/` for review, but its ZIP is no longer distributed.
 
