@@ -2,6 +2,68 @@ let collecting = false;
 let relayToReader = false;
 const player = {items: [], index: 0, playing: false, paused: false, waiting: false, autoPlay: false, token: 0, status: 'Open a Facebook post to begin.'};
 let controls;
+const layoutKey = 'fbcr-mini-player-layout-v1';
+
+function setLayout(left, top, width, height) {
+  const margin = 8;
+  const maxWidth = Math.max(180, window.innerWidth - margin * 2);
+  const maxHeight = Math.max(180, window.innerHeight - margin * 2);
+  width = Math.min(maxWidth, Math.max(Math.min(260, maxWidth), width));
+  height = Math.min(maxHeight, Math.max(Math.min(260, maxHeight), height));
+  controls.panel.style.width = `${width}px`;
+  controls.panel.style.height = `${height}px`;
+  controls.host.style.right = 'auto';
+  controls.host.style.bottom = 'auto';
+  controls.host.style.left = `${Math.max(margin, Math.min(left, window.innerWidth - width - margin))}px`;
+  controls.host.style.top = `${Math.max(margin, Math.min(top, window.innerHeight - height - margin))}px`;
+}
+
+function saveLayout() {
+  const {left, top, width, height} = controls.panel.getBoundingClientRect();
+  try { localStorage.setItem(layoutKey, JSON.stringify({left, top, width, height})); } catch {}
+}
+
+function restoreLayout() {
+  try {
+    const layout = JSON.parse(localStorage.getItem(layoutKey) || 'null');
+    if (layout && [layout.left, layout.top, layout.width, layout.height].every(Number.isFinite))
+      setLayout(layout.left, layout.top, layout.width, layout.height);
+  } catch {}
+}
+
+function enableLayoutControls(header, resize) {
+  const begin = (event, resizing) => {
+    if (event.button !== 0 || (!resizing && event.target.closest('button'))) return;
+    event.preventDefault();
+    const rect = controls.panel.getBoundingClientRect();
+    setLayout(rect.left, rect.top, rect.width, rect.height);
+    const originX = event.clientX;
+    const originY = event.clientY;
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+    const move = next => {
+      if (resizing) setLayout(rect.left, rect.top, rect.width + next.clientX - originX, rect.height + next.clientY - originY);
+      else setLayout(rect.left + next.clientX - originX, rect.top + next.clientY - originY, rect.width, rect.height);
+    };
+    const finish = () => {
+      target.removeEventListener('pointermove', move);
+      target.removeEventListener('pointerup', finish);
+      target.removeEventListener('pointercancel', finish);
+      saveLayout();
+    };
+    target.addEventListener('pointermove', move);
+    target.addEventListener('pointerup', finish);
+    target.addEventListener('pointercancel', finish);
+  };
+  header.addEventListener('pointerdown', event => begin(event, false));
+  resize.addEventListener('pointerdown', event => begin(event, true));
+  window.addEventListener('resize', () => {
+    if (!controls.host.style.left || controls.panel.hidden) return;
+    const {left, top, width, height} = controls.panel.getBoundingClientRect();
+    setLayout(left, top, width, height);
+    saveLayout();
+  });
+}
 
 function clean(text) {
   return String(text || '').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}]/gu, '').replace(/[\uFE0F\u200D\uFFFC]/g, '').replace(/\s+/g, ' ').trim();
@@ -76,7 +138,16 @@ function move(delta) {
 }
 
 function showControls() {
-  if (controls) { controls.panel.hidden = false; controls.launcher.hidden = true; renderControls(); return; }
+  if (controls) {
+    controls.panel.hidden = false;
+    controls.launcher.hidden = true;
+    if (controls.host.style.left) {
+      const {left, top, width, height} = controls.panel.getBoundingClientRect();
+      setLayout(left, top, width, height);
+    }
+    renderControls();
+    return;
+  }
   const host = document.createElement('div');
   host.id = 'fbcr-overlay-host';
   host.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;font:14px system-ui,sans-serif';
@@ -84,13 +155,13 @@ function showControls() {
   shadow.innerHTML = `<style>
     :host{all:initial}*{box-sizing:border-box}button{font:inherit;cursor:pointer}button:disabled{opacity:.48;cursor:default}
     #launcher{background:#182536;color:#fff;border:1px solid #8cb4e8;border-radius:999px;padding:10px 16px;box-shadow:0 8px 28px #0008}
-    #panel{width:min(340px,calc(100vw - 32px));padding:14px;border:1px solid #8ba5c5;border-radius:14px;background:#111b2a;color:#f5f8fc;box-shadow:0 16px 40px #0009;line-height:1.4}
-    header{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:700;font-size:15px}#hide{background:none;color:#c6d6ec;border:0;padding:4px 6px}
-    #count{margin:10px 0 2px;color:#b9d4fa}#position{font-size:12px;color:#b8c5d6}#comment{min-height:48px;max-height:90px;overflow:auto;margin:5px 0 10px;white-space:pre-wrap}
+    #panel{position:relative;display:flex;flex-direction:column;width:min(340px,calc(100vw - 32px));height:min(315px,calc(100vh - 32px));min-width:min(260px,calc(100vw - 16px));min-height:min(260px,calc(100vh - 16px));padding:14px;border:1px solid #8ba5c5;border-radius:14px;background:#111b2a;color:#f5f8fc;box-shadow:0 16px 40px #0009;line-height:1.4;overflow:auto}
+    #panel[hidden],#launcher[hidden]{display:none}header{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:700;font-size:15px;cursor:move;touch-action:none;user-select:none}#hide{background:none;color:#c6d6ec;border:0;padding:4px 6px;cursor:pointer}
+    #count{margin:10px 0 2px;color:#b9d4fa}#position{font-size:12px;color:#b8c5d6}#comment{flex:1;min-height:40px;overflow:auto;margin:5px 0 10px;white-space:pre-wrap}
     #collect{width:100%;padding:10px;border:0;border-radius:8px;background:#9fc7ff;color:#10203a;font-weight:700}
     nav{display:flex;gap:6px;margin-top:9px}nav button{flex:1;min-width:0;padding:7px 4px;border:1px solid #627996;border-radius:7px;background:#24364e;color:#fff}
-    #status{min-height:18px;margin:10px 0 0;font-size:12px;color:#c6d6ec}
-  </style><button id="launcher" type="button" hidden>Comment reader</button><section id="panel" aria-label="Comment reader controls"><header><span>Comment reader</span><button id="hide" type="button">Hide</button></header><p id="count"></p><div id="position"></div><div id="comment"></div><button id="collect" type="button">Collect and play</button><nav><button id="previous" type="button">Previous</button><button id="play" type="button">Play</button><button id="next" type="button">Next</button><button id="stop" type="button">Stop</button></nav><p id="status" role="status"></p></section>`;
+    #status{min-height:18px;margin:10px 0 0;font-size:12px;color:#c6d6ec}#resize{position:absolute;right:3px;bottom:3px;width:20px;height:20px;padding:0;border:0;background:linear-gradient(135deg,transparent 46%,#8ba5c5 47%,#8ba5c5 56%,transparent 57%);cursor:nwse-resize;touch-action:none}
+  </style><button id="launcher" type="button" hidden>Comment reader</button><section id="panel" aria-label="Comment reader controls"><header title="Drag to move"><span>Comment reader</span><button id="hide" type="button">Hide</button></header><p id="count"></p><div id="position"></div><div id="comment"></div><button id="collect" type="button">Collect and play</button><nav><button id="previous" type="button">Previous</button><button id="play" type="button">Play</button><button id="next" type="button">Next</button><button id="stop" type="button">Stop</button></nav><p id="status" role="status"></p><button id="resize" type="button" aria-label="Drag to resize player" title="Drag to resize"></button></section>`;
   document.documentElement.append(host);
   const get = id => shadow.getElementById(id);
   controls = {host, panel: get('panel'), launcher: get('launcher'), count: get('count'), position: get('position'), comment: get('comment'), status: get('status'), collect: get('collect'), previous: get('previous'), play: get('play'), next: get('next')};
@@ -101,6 +172,8 @@ function showControls() {
   controls.next.addEventListener('click', () => move(1));
   controls.play.addEventListener('click', toggleSpeech);
   get('stop').addEventListener('click', stopSpeech);
+  enableLayoutControls(get('panel').querySelector('header'), get('resize'));
+  restoreLayout();
   renderControls();
 }
 
