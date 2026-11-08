@@ -17,7 +17,6 @@
     if(!comments.length)return;
     const current=comments[index];
     q('#cr-count').textContent=`Comment ${index+1} of ${comments.length}${pendingLoads?' · buffering':''}`;
-    q('#cr-author').textContent=current[0];
     q('#cr-body').textContent=current[1];
     q('#cr-prev').disabled=index===0;
     q('#cr-next').disabled=index===comments.length-1;
@@ -39,7 +38,7 @@
       const i=comments.length-1;
       const button=document.createElement('button');button.type='button';button.className='item';
       const label=document.createElement('b'),text=document.createElement('span');
-      label.textContent=`${i+1}. ${name}`;text.textContent=body;
+      label.textContent=`Comment ${i+1}`;text.textContent=body;
       button.append(label,text);
       button.addEventListener('click',()=>{stop();index=i;render();status('Comment selected. Tap Read continuously.')});
       list.append(button);added++;
@@ -58,7 +57,7 @@
     if(!synth||!window.SpeechSynthesisUtterance){status('Speech playback is unavailable in this browser.');return}
     if(replace)synth.cancel();
     const current=++token;
-    const utterance=new SpeechSynthesisUtterance(`${comments[index][0]} says: ${comments[index][1]}`);
+    const utterance=new SpeechSynthesisUtterance(comments[index][1]);
     utterance.rate=Number(q('#cr-rate').value);utterance.lang='en-GB';
     utterance.onend=()=>{
       if(current!==token)return;

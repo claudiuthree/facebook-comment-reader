@@ -11,7 +11,6 @@
     #comment-reader a{color:light-dark(#285db5,#91b6ff)}
     #comment-reader .now{background:light-dark(#fff,#1e2734);border:1px solid light-dark(#dbe2ec,#3b4656);border-radius:14px;padding:18px;margin:18px 0}
     #comment-reader .eyebrow{font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;color:light-dark(#607089,#afbed1);margin-bottom:10px}
-    #comment-reader .author{font-weight:600;margin-bottom:8px}
     #comment-reader .body{font-size:1.08rem;line-height:1.5;min-height:3.2em}
     #comment-reader .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
     #comment-reader button,#comment-reader select{font:inherit;border-radius:10px;border:1px solid light-dark(#cad4e0,#556174);background:light-dark(#fff,#263242);color:inherit;padding:9px 13px;min-height:42px}
@@ -34,7 +33,7 @@
     @media(max-width:450px){#comment-reader{padding:14px}#comment-reader .controls button{flex:1 0 auto}}
   </style>
   <div class="top"><div><h2>Facebook comment reader</h2><p class="sub">Paintwitheroy · “What’s one thing that drives you crazy as a painter?”</p></div><a href="https://www.facebook.com/61591138393698/posts/122127670083371279/" target="_blank" rel="noopener">Open post</a></div>
-  <div class="now" aria-live="polite"><p class="eyebrow" id="cr-count">Loading comments</p><p class="author" id="cr-author"></p><p class="body" id="cr-body"></p></div>
+  <div class="now" aria-live="polite"><p class="eyebrow" id="cr-count">Loading comments</p><p class="body" id="cr-body"></p></div>
   <div class="controls"><button type="button" id="cr-prev" aria-label="Previous comment">Previous</button><button type="button" class="primary" id="cr-play" disabled>Read continuously</button><button type="button" id="cr-next" aria-label="Next comment">Next</button><button type="button" id="cr-stop">Stop</button><label for="cr-rate">Speed <select id="cr-rate"><option value="0.8">0.8×</option><option value="1" selected>1×</option><option value="1.2">1.2×</option><option value="1.5">1.5×</option></select></label></div>
   <p id="cr-status" class="status" role="status">Tap Read continuously to hear all loaded comments from the selected one.</p>
   <div class="import"><label for="cr-paste">Add copied comments</label><textarea id="cr-paste" placeholder="One comment per line, or paste a JSON array"></textarea><button type="button" id="cr-add">Add to listening queue</button></div>
@@ -60,7 +59,6 @@
     if(!comments.length)return;
     const current=comments[index];
     q('#cr-count').textContent=`Comment ${index+1} of ${comments.length}${pendingLoads?' · buffering':''}`;
-    q('#cr-author').textContent=current[0];
     q('#cr-body').textContent=current[1];
     q('#cr-prev').disabled=index===0;
     q('#cr-next').disabled=index===comments.length-1;
@@ -82,7 +80,7 @@
       const i=comments.length-1;
       const button=document.createElement('button');button.type='button';button.className='item';
       const label=document.createElement('b'),text=document.createElement('span');
-      label.textContent=`${i+1}. ${name}`;text.textContent=body;
+      label.textContent=`Comment ${i+1}`;text.textContent=body;
       button.append(label,text);
       button.addEventListener('click',()=>{stop();index=i;render();status('Comment selected. Tap Read continuously.')});
       list.append(button);added++;
@@ -101,7 +99,7 @@
     if(!synth||!window.SpeechSynthesisUtterance){status('Speech playback is unavailable in this browser.');return}
     if(replace)synth.cancel();
     const current=++token;
-    const utterance=new SpeechSynthesisUtterance(`${comments[index][0]} says: ${comments[index][1]}`);
+    const utterance=new SpeechSynthesisUtterance(comments[index][1]);
     utterance.rate=Number(q('#cr-rate').value);utterance.lang='en-GB';
     utterance.onend=()=>{
       if(current!==token)return;

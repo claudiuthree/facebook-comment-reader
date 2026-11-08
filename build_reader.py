@@ -26,6 +26,8 @@ def make_script(items, remote):
 
 
 html = page.read_text(encoding='utf-8-sig')
+html = html.replace('<p class="author" id="cr-author"></p>', '')
+html = html.replace('    #comment-reader .author{font-weight:600;margin-bottom:8px}\n', '')
 if 'id="cr-paste"' not in html:
     html = html.replace('    #comment-reader .status{',
         '    #comment-reader textarea{width:100%;min-height:96px;resize:vertical;font:inherit;border-radius:10px;border:1px solid light-dark(#cad4e0,#556174);background:light-dark(#fff,#263242);color:inherit;padding:10px}\n'
