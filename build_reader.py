@@ -76,6 +76,13 @@ if 'id="cr-log"' not in html:
         '    #comment-reader .status{')
     html = html.replace('  <script>',
         '  <details class="activity" open><summary>Activity log</summary><ul id="cr-log" role="log" aria-label="Reader activity"></ul></details>\n  <script>',1)
+if 'id="cr-copy-report"' not in html:
+    html = html.replace('<ul id="cr-log" role="log" aria-label="Reader activity"></ul></details>',
+        '<ul id="cr-log" role="log" aria-label="Reader activity"></ul><button type="button" id="cr-copy-report">Copy diagnostic report</button><textarea id="cr-report" aria-label="Diagnostic report" readonly hidden></textarea></details>')
+    html = html.replace('    #comment-reader .status{',
+        '    #comment-reader .activity button{margin-top:10px}\n'
+        '    #comment-reader .activity textarea{margin-top:10px;min-height:150px}\n'
+        '    #comment-reader .status{')
 html = re.sub(r'<script>.*?</script>', lambda _: '<script>\n' + make_script(data[:30], True) + '\n  </script>', html, count=1, flags=re.S)
 html = re.sub(r'\d+ unique text comments and replies · 8 Nov 2026', '30 comments ready · buffering more', html, count=1)
 page.write_text(html, encoding='utf-8')

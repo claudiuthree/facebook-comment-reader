@@ -12,6 +12,8 @@ A progress bar beside the link field shows how many saved comments are ready and
 
 The Activity log at the bottom records link selection, saved snapshot loading, pasted comment imports, timeouts, and errors. For a new post, it explicitly says that no live Facebook fetch was attempted.
 
+The Copy diagnostic report button copies the selected post URL, ready count, progress, and recent activity. A user can paste that report into the Codex chat for link-specific troubleshooting; the site does not send the report automatically.
+
 Audio uses the browser Speech Synthesis API. Keep the page open while listening.
 Commenter names are not displayed or spoken.
 

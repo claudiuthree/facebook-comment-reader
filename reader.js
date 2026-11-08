@@ -22,6 +22,25 @@
     const logList=q('#cr-log');logList.prepend(entry);
     while(logList.children.length>50)logList.lastElementChild.remove();
   }
+  q('#cr-copy-report').addEventListener('click',async()=>{
+    const report=[
+      'Facebook Comment Reader diagnostic',
+      `Post: ${activeUrl}`,
+      `Comments ready: ${comments.length}`,
+      `Progress: ${q('#cr-progress-text').textContent}`,
+      'Recent activity:',
+      ...Array.from(q('#cr-log').children).slice(0,15).map(entry=>entry.textContent)
+    ].join('\n');
+    try{
+      await navigator.clipboard.writeText(report);
+      status('Diagnostic report copied. Paste it into the chat for help.');
+      log('info','Diagnostic report copied to clipboard.');
+    }catch{
+      const field=q('#cr-report');field.hidden=false;field.value=report;field.focus();field.select();
+      status('Select and copy the diagnostic report shown below the activity log.');
+      log('warning','Clipboard permission was unavailable; report shown for manual copying.');
+    }
+  });
   function status(message){q('#cr-status').textContent=message;}
   function countLabel(){q('.listhead .sub').textContent=`${comments.length} unique comments ready${pendingLoads?' · buffering more':''}`;}
   function progress(){

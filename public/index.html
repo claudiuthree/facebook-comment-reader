@@ -35,6 +35,8 @@
     #comment-reader .activity li{font-size:.83rem;line-height:1.4;padding:7px 0;border-bottom:1px solid light-dark(#e2e8f0,#303a48);overflow-wrap:anywhere}
     #comment-reader .activity li[data-level="error"]{color:light-dark(#9a261d,#ffaaa1)}
     #comment-reader .activity li[data-level="warning"]{color:light-dark(#805600,#f1c46f)}
+    #comment-reader .activity button{margin-top:10px}
+    #comment-reader .activity textarea{margin-top:10px;min-height:150px}
     #comment-reader .status{font-size:.88rem;color:light-dark(#526072,#b7c1cf);min-height:1.3em}
     #comment-reader .listhead{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:18px 0 8px}
     #comment-reader .listhead strong{font-size:.95rem}
@@ -54,7 +56,7 @@
   <div class="import"><label for="cr-paste">Add copied comments</label><textarea id="cr-paste" placeholder="One comment per line, or paste a JSON array"></textarea><button type="button" id="cr-add">Add to listening queue</button></div>
   <div class="listhead"><strong>Comments loaded from this post</strong><span class="sub">30 comments ready · buffering more</span></div>
   <div id="cr-list" class="list" aria-label="Select a comment"></div>
-  <details class="activity" open><summary>Activity log</summary><ul id="cr-log" role="log" aria-label="Reader activity"></ul></details>
+  <details class="activity" open><summary>Activity log</summary><ul id="cr-log" role="log" aria-label="Reader activity"></ul><button type="button" id="cr-copy-report">Copy diagnostic report</button><textarea id="cr-report" aria-label="Diagnostic report" readonly hidden></textarea></details>
   <script>
 (()=>{
   const root=document.getElementById('comment-reader');
@@ -80,6 +82,25 @@
     const logList=q('#cr-log');logList.prepend(entry);
     while(logList.children.length>50)logList.lastElementChild.remove();
   }
+  q('#cr-copy-report').addEventListener('click',async()=>{
+    const report=[
+      'Facebook Comment Reader diagnostic',
+      `Post: ${activeUrl}`,
+      `Comments ready: ${comments.length}`,
+      `Progress: ${q('#cr-progress-text').textContent}`,
+      'Recent activity:',
+      ...Array.from(q('#cr-log').children).slice(0,15).map(entry=>entry.textContent)
+    ].join('\n');
+    try{
+      await navigator.clipboard.writeText(report);
+      status('Diagnostic report copied. Paste it into the chat for help.');
+      log('info','Diagnostic report copied to clipboard.');
+    }catch{
+      const field=q('#cr-report');field.hidden=false;field.value=report;field.focus();field.select();
+      status('Select and copy the diagnostic report shown below the activity log.');
+      log('warning','Clipboard permission was unavailable; report shown for manual copying.');
+    }
+  });
   function status(message){q('#cr-status').textContent=message;}
   function countLabel(){q('.listhead .sub').textContent=`${comments.length} unique comments ready${pendingLoads?' · buffering more':''}`;}
   function progress(){
