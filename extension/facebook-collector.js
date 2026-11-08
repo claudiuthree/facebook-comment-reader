@@ -122,14 +122,28 @@ function startLocal() {
 function commentsOnPage() {
   return [...document.querySelectorAll('[role="article"][aria-label^="Comment by"]')]
     .filter(article => article.getClientRects().length)
+    .filter(article => !commentExpandButtons(article).length)
     .map(article => clean([...article.querySelectorAll('div[dir="auto"]')].map(element => element.innerText.trim()).filter(Boolean).join(' ')))
     .filter(Boolean);
+}
+
+function commentExpandButtons(article) {
+  return [...article.querySelectorAll('button,[role="button"]')]
+    .filter(button => button.getClientRects().length && clean(button.innerText) === 'See more');
+}
+
+function expandCommentText() {
+  const buttons = new Set([...document.querySelectorAll('[role="article"][aria-label^="Comment by"]')]
+    .filter(article => article.getClientRects().length)
+    .flatMap(commentExpandButtons));
+  for (const button of buttons) if (button.isConnected) button.click();
+  return buttons.size;
 }
 
 function clickMore() {
   const candidates = [...document.querySelectorAll('button,[role="button"]')]
     .filter(button => button.getClientRects().length)
-    .filter(button => /^(?:View more comments|See more|View \d+ repl(?:y|ies))$/i.test(clean(button.innerText)));
+    .filter(button => /^(?:View more comments|View \d+ repl(?:y|ies))$/i.test(clean(button.innerText)));
   for (const button of candidates.slice(0, 3)) button.click();
   return candidates.length;
 }
@@ -181,6 +195,8 @@ async function collect(fromReader = false, play = false) {
   try {
     await showAllComments();
     while (Date.now() - started < 65000 && idle < 10) {
+      const expanded = expandCommentText();
+      if (expanded) await new Promise(resolve => setTimeout(resolve, 100));
       const comments = commentsOnPage();
       const fresh = comments.filter(text => {
         const key = text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
@@ -193,7 +209,7 @@ async function collect(fromReader = false, play = false) {
       const more = clickMore();
       const advanced = advanceComments();
       if (!comments.length) window.scrollTo(0, document.body.scrollHeight);
-      idle = fresh.length || more || advanced ? 0 : idle + 1;
+      idle = fresh.length || expanded || more || advanced ? 0 : idle + 1;
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
     if (!seen.size) {
