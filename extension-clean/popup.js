@@ -2,7 +2,7 @@ const el = id => document.getElementById(id);
 let tabId;
 
 function render(state) {
-  el('count').textContent = `${state.count} unique comments loaded${state.collecting ? ' · collecting' : ''}`;
+  el('count').textContent = `${state.count} unique readable comments loaded${state.total ? ` / ${state.total} on Facebook` : ''}${state.collecting ? ' · collecting' : ''}`;
   el('position').textContent = state.count ? `Comment ${state.index + 1} of ${state.count}` : '';
   el('comment').hidden = !state.count;
   el('comment').textContent = state.comment;

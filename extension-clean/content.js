@@ -6,14 +6,23 @@
   let host, panel, shadow, statusText = '';
   const clean = text => String(text || '').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}\uFE0F\u200D]/gu, '').replace(/\s+/g, ' ').trim();
   const keyOf = text => text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
-  const postPage = () => /\/(?:posts\/|reel\/|photo\/?|videos\/|permalink\.php)/.test(location.pathname) || !!document.querySelector('[role="article"][aria-label^="Comment by"]');
+  const commentSelector = '[aria-label^="Comment by"],[aria-label^="Reply by"]';
+  const postPage = () => /\/(?:posts\/|reel\/|photo\/?|videos\/|permalink\.php)/.test(location.pathname) || !!document.querySelector(commentSelector);
+  const facebookTotal = () => {
+    for (const node of document.querySelectorAll('button[aria-label]')) {
+      const match = node.getAttribute('aria-label')?.match(/,\s*([\d,]+) comments?\s*$/i);
+      if (match) return Number(match[1].replaceAll(',', ''));
+    }
+    return null;
+  };
   const button = id => shadow.getElementById(id);
   const status = message => { statusText = message; if (shadow) button('status').textContent = message; };
-  const state = () => ({ok:true, count:queue.length, index, comment:queue[index] || '', collecting, playing, paused, status:statusText});
+  const state = () => ({ok:true, count:queue.length, total:facebookTotal(), index, comment:queue[index] || '', collecting, playing, paused, status:statusText});
 
   function render() {
     if (!shadow) return;
-    button('count').textContent = `${queue.length} unique comments loaded${collecting ? ' · collecting' : ''}`;
+    const total = facebookTotal();
+    button('count').textContent = `${queue.length} unique readable comments loaded${total ? ` / ${total} on Facebook` : ''}${collecting ? ' · collecting' : ''}`;
     button('position').textContent = queue.length ? `Comment ${index + 1} of ${queue.length}` : 'No comments loaded';
     button('comment').textContent = queue[index] || 'Press Collect and play to start.';
     button('play').textContent = paused ? 'Resume' : playing ? 'Pause' : 'Play';
@@ -159,7 +168,8 @@
   }
 
   function tick() {
-    const articles = [...document.querySelectorAll('[role="article"][aria-label^="Comment by"]')].filter(node => node.getClientRects().length);
+    const articles = [...document.querySelectorAll(commentSelector)].filter(node => node.getClientRects().length);
+    if (articles.length > timer.visibleCount) { timer.visibleCount = articles.length; timer.lastProgress = Date.now(); }
     let fresh = 0;
     for (const article of articles) {
       const more = [...article.querySelectorAll('button,[role="button"]')].filter(node => node.getClientRects().length && clean(node.innerText) === 'See more');
@@ -168,32 +178,35 @@
       const key = keyOf(text);
       if (key && !seen.has(key)) { seen.add(key); queue.push(text); fresh++; }
     }
-    if (fresh) { timer.idle = 0; render(); if (autoPlay && !playing && !paused) speak(); }
-    else timer.idle++;
-    if (timer.clicks < 20) {
-      const more = [...document.querySelectorAll('button,[role="button"]')]
-        .find(node => node.getClientRects().length && /^(?:View more comments|View \d+ repl(?:y|ies))$/i.test(clean(node.innerText)));
-      if (more) { more.click(); timer.clicks++; }
+    if (fresh) { timer.lastProgress = Date.now(); render(); if (autoPlay && !playing && !paused) speak(); }
+    const expand = [...document.querySelectorAll('button,[role="button"]')]
+      .filter(node => node.getClientRects().length && /^(?:View more comments|View (?:more |previous )?\d*\s*repl(?:y|ies))$/i.test(clean(node.innerText)))
+      .sort((a, b) => Number(clean(b.innerText) === 'View more comments') - Number(clean(a.innerText) === 'View more comments'));
+    let clicked = 0;
+    for (const node of expand) {
+      if (Date.now() - (timer.buttonClicks.get(node) || 0) < 2000) continue;
+      node.click(); timer.buttonClicks.set(node, Date.now());
+      if (++clicked >= 3) break;
     }
-    if (timer.moves < 8 && timer.idle < 5) {
+    if (!expand.length) {
       const last = articles.at(-1);
       for (let pane = last?.parentElement; pane && pane !== document.body; pane = pane.parentElement) {
         if (pane === document.documentElement || pane === document.scrollingElement) break;
         if (pane.scrollHeight <= pane.clientHeight + 100 || !/auto|scroll/.test(getComputedStyle(pane).overflowY)) continue;
         const before = pane.scrollTop;
         pane.scrollTop = Math.min(pane.scrollHeight, before + pane.clientHeight * .8);
-        if (pane.scrollTop > before) timer.moves++;
         break;
       }
     }
-    if (timer.idle >= 8 || Date.now() - timer.started > 40000 || (timer.clicks >= 20 && timer.moves >= 8)) finish();
+    if (Date.now() - timer.lastProgress > 20000) finish('No new readable comments appeared for 20 seconds.');
+    else if (Date.now() - timer.started > 240000) finish('Collection reached its four-minute limit.');
   }
 
-  function finish() {
+  function finish(reason = '') {
     clearInterval(timer.id);
     collecting = false;
     render();
-    status(queue.length ? `${queue.length} comments loaded. ${playing ? 'Reading now.' : 'Press Play to listen.'}` : 'No visible comments found on this post.');
+    status(queue.length ? `${queue.length} unique readable comments loaded. ${reason} ${playing ? 'Reading now.' : 'Press Play to listen.'}`.trim() : `No readable comments found. ${reason}`.trim());
   }
 
   async function selectNewest() {
@@ -237,7 +250,7 @@
     const newest = await selectNewest();
     if (!collecting) return;
     status(newest ? 'Newest selected. Collecting comments.' : 'Newest sort unavailable. Collecting visible comments.');
-    timer = {started:Date.now(), idle:0, clicks:0, moves:0, id:setInterval(tick, 1000)};
+    timer = {started:Date.now(), lastProgress:Date.now(), visibleCount:0, buttonClicks:new WeakMap(), id:setInterval(tick, 1000)};
     tick();
   }
 

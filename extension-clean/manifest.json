@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Facebook Comment Reader",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "Read visible Facebook comments aloud on the post you open.",
   "permissions": ["tabs", "clipboardWrite"],
   "action": { "default_title": "Comment reader", "default_popup": "popup.html" },
