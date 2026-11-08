@@ -29,6 +29,12 @@
     #comment-reader .import{margin:16px 0}
     #comment-reader .import label{display:block;margin-bottom:6px;font-weight:600}
     #comment-reader .import button{margin-top:8px}
+    #comment-reader .activity{margin-top:18px;border-top:1px solid light-dark(#dbe2ec,#3b4656);padding-top:14px}
+    #comment-reader .activity summary{font-weight:600;cursor:pointer}
+    #comment-reader .activity ul{list-style:none;margin:10px 0 0;padding:0;max-height:220px;overflow:auto}
+    #comment-reader .activity li{font-size:.83rem;line-height:1.4;padding:7px 0;border-bottom:1px solid light-dark(#e2e8f0,#303a48);overflow-wrap:anywhere}
+    #comment-reader .activity li[data-level="error"]{color:light-dark(#9a261d,#ffaaa1)}
+    #comment-reader .activity li[data-level="warning"]{color:light-dark(#805600,#f1c46f)}
     #comment-reader .status{font-size:.88rem;color:light-dark(#526072,#b7c1cf);min-height:1.3em}
     #comment-reader .listhead{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:18px 0 8px}
     #comment-reader .listhead strong{font-size:.95rem}
@@ -48,6 +54,7 @@
   <div class="import"><label for="cr-paste">Add copied comments</label><textarea id="cr-paste" placeholder="One comment per line, or paste a JSON array"></textarea><button type="button" id="cr-add">Add to listening queue</button></div>
   <div class="listhead"><strong>Comments loaded from this post</strong><span class="sub">30 comments ready · buffering more</span></div>
   <div id="cr-list" class="list" aria-label="Select a comment"></div>
+  <details class="activity" open><summary>Activity log</summary><ul id="cr-log" role="log" aria-label="Reader activity"></ul></details>
   <script>
 (()=>{
   const root=document.getElementById('comment-reader');
@@ -65,6 +72,14 @@
 
   const clean=text=>String(text||'').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}]/gu,'').replace(/[\uFE0F\u200D]/g,'').trim();
   const identity=text=>Array.from(text.normalize('NFKC').toLowerCase()).filter(char=>/[\p{L}\p{N}]/u.test(char)).join('');
+  function log(level,message){
+    const entry=document.createElement('li');
+    const time=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    entry.textContent=`${time} · ${level.toUpperCase()} · ${message}`;
+    entry.dataset.level=level;
+    const logList=q('#cr-log');logList.prepend(entry);
+    while(logList.children.length>50)logList.lastElementChild.remove();
+  }
   function status(message){q('#cr-status').textContent=message;}
   function countLabel(){q('.listhead .sub').textContent=`${comments.length} unique comments ready${pendingLoads?' · buffering more':''}`;}
   function progress(){
@@ -166,11 +181,12 @@
         if(key&&!keys.has(key)){saved.push(item);keys.add(key)}
       }
       localStorage.setItem(storageKey(),JSON.stringify(saved));
-    }catch{}
+    }catch(error){log('warning',`Could not save imported comments on this device: ${error.message}`)}
   }
   q('#cr-add').addEventListener('click',()=>{
     const raw=q('#cr-paste').value;const items=parse(raw);
-    if(!items.length){status('Paste comments first, one per line or as a JSON array.');return}
+    if(!items.length){status('Paste comments first, one per line or as a JSON array.');log('warning','No copied comments were entered.');return}
+    log('info',`Processing ${items.length} pasted lines for this post.`);
     const importVersion=version;
     importProgress={done:0,total:items.length};pendingLoads++;render();status('Adding copied comments while playback remains available.');
     let offset=0,added=0;
@@ -178,7 +194,7 @@
       if(importVersion!==version)return;
       added+=add(items.slice(offset,offset+100));offset+=100;importProgress.done=offset;render();
       if(offset<items.length)setTimeout(batch,0);
-      else{saveImport(items);q('#cr-paste').value='';importProgress=null;finishLoad();status(`Added ${added} new ${added===1?'comment':'comments'}; repeated text skipped.`)}
+      else{saveImport(items);q('#cr-paste').value='';importProgress=null;finishLoad();status(`Added ${added} new ${added===1?'comment':'comments'}; repeated text skipped.`);log('success',`Added ${added} unique comments. Skipped ${items.length-added} empty or repeated lines.`)}
     }
     batch();
   });
@@ -195,26 +211,32 @@
   }
   function restore(){try{add(JSON.parse(localStorage.getItem(storageKey())||'[]'))}catch{}}
   function loadSaved(){const requestVersion=version;
-    fetch('./comments.json')
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),8000);
+    log('info','Loading the remaining saved comments for the example post.');
+    fetch('./comments.json',{signal:controller.signal})
       .then(response=>{if(!response.ok)throw new Error('Fetch failed');return response.json()})
-      .then(items=>{if(requestVersion!==version)return;const added=add(items);savedLoaded=knownTotal;finishLoad();status(`${comments.length} comments ready. ${added} loaded in the background.`)})
-      .catch(()=>{if(requestVersion!==version)return;finishLoad();status('Saved comments are ready. More comments could not be loaded.')});}
+      .then(items=>{if(requestVersion!==version)return;const added=add(items);savedLoaded=knownTotal;finishLoad();status(`${comments.length} comments ready. ${added} loaded in the background.`);log('success',`Saved comment load finished: ${comments.length} unique comments ready.`)})
+      .catch(error=>{if(requestVersion!==version)return;finishLoad();status('Saved comments are ready. More comments could not be loaded. See the activity log.');log('error',`Saved comment request failed: ${error.name==='AbortError'?'timed out after 8 seconds':error.message}`)})
+      .finally(()=>clearTimeout(timer));}
   function usePost(raw){
     const next=canonical(raw);
-    if(!next){status('Enter a Facebook post link.');return}
-    if(next===activeUrl){status(`${comments.length} comments ready for this post.`);return}
+    if(!next){status('Enter a Facebook post link.');log('error','The link was rejected. Enter an HTTPS Facebook post URL.');return}
+    if(next===activeUrl){status(`${comments.length} comments ready for this post.`);log('info',`This post is already selected. ${comments.length} comments are ready.`);return}
     stop();version++;activeUrl=next;comments.length=0;seen.clear();list.replaceChildren();index=0;pendingLoads=0;savedLoaded=0;importProgress=null;
     try{localStorage.setItem('facebook-comment-reader-active-post',next)}catch{}
     q('#cr-openpost').href=next;q('#cr-post-url').value=next;
     q('#cr-sub').textContent=next===knownPost?'Paintwitheroy · “What’s one thing that drives you crazy as a painter?”':'Selected Facebook post';
+    log('info',`Selected post: ${next}`);
     if(next===knownPost){pendingLoads=1;savedLoaded=initial.length;add(initial);restore();loadSaved();status(`${comments.length} comments ready. Buffering the saved set.`)}
-    else{restore();render();status(comments.length?`${comments.length} saved comments ready for this post.`:'Post selected. Open it, copy its comments, then paste them below. Facebook does not provide these comments to the reader from the link alone.')}
+    else{restore();render();status(comments.length?`${comments.length} saved comments ready for this post.`:'Post selected. Open it, copy its comments, then paste them below. Facebook does not provide these comments to the reader from the link alone.');log('warning',comments.length?`Loaded ${comments.length} comments previously pasted for this post. No live Facebook fetch was attempted.`:'No live Facebook fetch was attempted. This post has no saved comments in the reader; paste its comments to add them.')}
   }
   q('#cr-form').addEventListener('submit',event=>{event.preventDefault();usePost(q('#cr-post-url').value)});
   root.addEventListener('dragover',event=>{if(!event.target.closest('textarea'))event.preventDefault()});
   root.addEventListener('drop',event=>{if(event.target.closest('textarea'))return;const raw=event.dataTransfer.getData('text/uri-list')||event.dataTransfer.getData('text/plain');if(canonical(raw)){event.preventDefault();usePost(raw)}});
 
   savedLoaded=initial.length;add(initial);
+  log('info',`${comments.length} bundled comments ready for the example post.`);
   restore();
   status(`${comments.length} comments ready. Tap Read continuously to start.`);
   loadSaved();

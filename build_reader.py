@@ -17,10 +17,14 @@ def js_data(items):
 
 def make_script(items, remote):
     remote_load = '''const requestVersion=version;
-    fetch('./comments.json')
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),8000);
+    log('info','Loading the remaining saved comments for the example post.');
+    fetch('./comments.json',{signal:controller.signal})
       .then(response=>{if(!response.ok)throw new Error('Fetch failed');return response.json()})
-      .then(items=>{if(requestVersion!==version)return;const added=add(items);savedLoaded=knownTotal;finishLoad();status(`${comments.length} comments ready. ${added} loaded in the background.`)})
-      .catch(()=>{if(requestVersion!==version)return;finishLoad();status('Saved comments are ready. More comments could not be loaded.')});''' if remote else ''
+      .then(items=>{if(requestVersion!==version)return;const added=add(items);savedLoaded=knownTotal;finishLoad();status(`${comments.length} comments ready. ${added} loaded in the background.`);log('success',`Saved comment load finished: ${comments.length} unique comments ready.`)})
+      .catch(error=>{if(requestVersion!==version)return;finishLoad();status('Saved comments are ready. More comments could not be loaded. See the activity log.');log('error',`Saved comment request failed: ${error.name==='AbortError'?'timed out after 8 seconds':error.message}`)})
+      .finally(()=>clearTimeout(timer));''' if remote else ''
     return (script.replace('__INITIAL_COMMENTS__', js_data(items))
                   .replace('__PENDING_LOADS__', '1' if remote else '0')
                   .replace('__KNOWN_TOTAL__', str(len(data)))
@@ -61,6 +65,17 @@ if 'id="cr-paste"' not in html:
     html = html.replace('  <div class="listhead">',
         '  <div class="import"><label for="cr-paste">Add copied comments</label><textarea id="cr-paste" placeholder="One comment per line, or paste a JSON array"></textarea><button type="button" id="cr-add">Add to listening queue</button></div>\n'
         '  <div class="listhead">')
+if 'id="cr-log"' not in html:
+    html = html.replace('    #comment-reader .status{',
+        '    #comment-reader .activity{margin-top:18px;border-top:1px solid light-dark(#dbe2ec,#3b4656);padding-top:14px}\n'
+        '    #comment-reader .activity summary{font-weight:600;cursor:pointer}\n'
+        '    #comment-reader .activity ul{list-style:none;margin:10px 0 0;padding:0;max-height:220px;overflow:auto}\n'
+        '    #comment-reader .activity li{font-size:.83rem;line-height:1.4;padding:7px 0;border-bottom:1px solid light-dark(#e2e8f0,#303a48);overflow-wrap:anywhere}\n'
+        '    #comment-reader .activity li[data-level="error"]{color:light-dark(#9a261d,#ffaaa1)}\n'
+        '    #comment-reader .activity li[data-level="warning"]{color:light-dark(#805600,#f1c46f)}\n'
+        '    #comment-reader .status{')
+    html = html.replace('  <script>',
+        '  <details class="activity" open><summary>Activity log</summary><ul id="cr-log" role="log" aria-label="Reader activity"></ul></details>\n  <script>',1)
 html = re.sub(r'<script>.*?</script>', lambda _: '<script>\n' + make_script(data[:30], True) + '\n  </script>', html, count=1, flags=re.S)
 html = re.sub(r'\d+ unique text comments and replies · 8 Nov 2026', '30 comments ready · buffering more', html, count=1)
 page.write_text(html, encoding='utf-8')

@@ -10,6 +10,8 @@ The phone page includes its first 30 comments in the HTML, so playback can begin
 
 A progress bar beside the link field shows how many saved comments are ready and the progress of a pasted batch. For other Facebook links, it immediately shows that no comments are available from the link alone.
 
+The Activity log at the bottom records link selection, saved snapshot loading, pasted comment imports, timeouts, and errors. For a new post, it explicitly says that no live Facebook fetch was attempted.
+
 Audio uses the browser Speech Synthesis API. Keep the page open while listening.
 Commenter names are not displayed or spoken.
 

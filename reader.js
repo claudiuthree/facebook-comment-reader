@@ -14,6 +14,14 @@
 
   const clean=text=>String(text||'').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}]/gu,'').replace(/[\uFE0F\u200D]/g,'').trim();
   const identity=text=>Array.from(text.normalize('NFKC').toLowerCase()).filter(char=>/[\p{L}\p{N}]/u.test(char)).join('');
+  function log(level,message){
+    const entry=document.createElement('li');
+    const time=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    entry.textContent=`${time} · ${level.toUpperCase()} · ${message}`;
+    entry.dataset.level=level;
+    const logList=q('#cr-log');logList.prepend(entry);
+    while(logList.children.length>50)logList.lastElementChild.remove();
+  }
   function status(message){q('#cr-status').textContent=message;}
   function countLabel(){q('.listhead .sub').textContent=`${comments.length} unique comments ready${pendingLoads?' · buffering more':''}`;}
   function progress(){
@@ -115,11 +123,12 @@
         if(key&&!keys.has(key)){saved.push(item);keys.add(key)}
       }
       localStorage.setItem(storageKey(),JSON.stringify(saved));
-    }catch{}
+    }catch(error){log('warning',`Could not save imported comments on this device: ${error.message}`)}
   }
   q('#cr-add').addEventListener('click',()=>{
     const raw=q('#cr-paste').value;const items=parse(raw);
-    if(!items.length){status('Paste comments first, one per line or as a JSON array.');return}
+    if(!items.length){status('Paste comments first, one per line or as a JSON array.');log('warning','No copied comments were entered.');return}
+    log('info',`Processing ${items.length} pasted lines for this post.`);
     const importVersion=version;
     importProgress={done:0,total:items.length};pendingLoads++;render();status('Adding copied comments while playback remains available.');
     let offset=0,added=0;
@@ -127,7 +136,7 @@
       if(importVersion!==version)return;
       added+=add(items.slice(offset,offset+100));offset+=100;importProgress.done=offset;render();
       if(offset<items.length)setTimeout(batch,0);
-      else{saveImport(items);q('#cr-paste').value='';importProgress=null;finishLoad();status(`Added ${added} new ${added===1?'comment':'comments'}; repeated text skipped.`)}
+      else{saveImport(items);q('#cr-paste').value='';importProgress=null;finishLoad();status(`Added ${added} new ${added===1?'comment':'comments'}; repeated text skipped.`);log('success',`Added ${added} unique comments. Skipped ${items.length-added} empty or repeated lines.`)}
     }
     batch();
   });
@@ -146,20 +155,22 @@
   function loadSaved(){__REMOTE_LOAD__}
   function usePost(raw){
     const next=canonical(raw);
-    if(!next){status('Enter a Facebook post link.');return}
-    if(next===activeUrl){status(`${comments.length} comments ready for this post.`);return}
+    if(!next){status('Enter a Facebook post link.');log('error','The link was rejected. Enter an HTTPS Facebook post URL.');return}
+    if(next===activeUrl){status(`${comments.length} comments ready for this post.`);log('info',`This post is already selected. ${comments.length} comments are ready.`);return}
     stop();version++;activeUrl=next;comments.length=0;seen.clear();list.replaceChildren();index=0;pendingLoads=0;savedLoaded=0;importProgress=null;
     try{localStorage.setItem('facebook-comment-reader-active-post',next)}catch{}
     q('#cr-openpost').href=next;q('#cr-post-url').value=next;
     q('#cr-sub').textContent=next===knownPost?'Paintwitheroy · “What’s one thing that drives you crazy as a painter?”':'Selected Facebook post';
+    log('info',`Selected post: ${next}`);
     if(next===knownPost){pendingLoads=__PENDING_LOADS__;savedLoaded=initial.length;add(initial);restore();loadSaved();status(`${comments.length} comments ready. Buffering the saved set.`)}
-    else{restore();render();status(comments.length?`${comments.length} saved comments ready for this post.`:'Post selected. Open it, copy its comments, then paste them below. Facebook does not provide these comments to the reader from the link alone.')}
+    else{restore();render();status(comments.length?`${comments.length} saved comments ready for this post.`:'Post selected. Open it, copy its comments, then paste them below. Facebook does not provide these comments to the reader from the link alone.');log('warning',comments.length?`Loaded ${comments.length} comments previously pasted for this post. No live Facebook fetch was attempted.`:'No live Facebook fetch was attempted. This post has no saved comments in the reader; paste its comments to add them.')}
   }
   q('#cr-form').addEventListener('submit',event=>{event.preventDefault();usePost(q('#cr-post-url').value)});
   root.addEventListener('dragover',event=>{if(!event.target.closest('textarea'))event.preventDefault()});
   root.addEventListener('drop',event=>{if(event.target.closest('textarea'))return;const raw=event.dataTransfer.getData('text/uri-list')||event.dataTransfer.getData('text/plain');if(canonical(raw)){event.preventDefault();usePost(raw)}});
 
   savedLoaded=initial.length;add(initial);
+  log('info',`${comments.length} bundled comments ready for the example post.`);
   restore();
   status(`${comments.length} comments ready. Tap Read continuously to start.`);
   loadSaved();
