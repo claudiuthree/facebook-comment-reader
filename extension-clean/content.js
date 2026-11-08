@@ -23,7 +23,7 @@
   }
 
   function stop() {
-    if (collecting) { clearInterval(timer.id); collecting = false; }
+    if (collecting) { clearInterval(timer?.id); collecting = false; }
     speechToken++;
     speechSynthesis.cancel();
     playing = paused = autoPlay = false;
@@ -185,7 +185,36 @@
     status(queue.length ? `${queue.length} comments loaded. ${playing ? 'Reading now.' : 'Press Play to listen.'}` : 'No visible comments found on this post.');
   }
 
-  function collect() {
+  async function selectNewest() {
+    const visible = node => node.getClientRects().length;
+    const sort = [...document.querySelectorAll('button,[role="button"]')]
+      .find(node => visible(node) && /^(Most relevant|Newest|All comments)$/i.test(clean(node.innerText)));
+    if (!sort) return false;
+    if (clean(sort.innerText) === 'Newest') return true;
+    sort.click();
+    let option;
+    for (let attempt = 0; attempt < 15; attempt++) {
+      if (!collecting) return false;
+      option = [...document.querySelectorAll('[role="menuitem"]')]
+        .find(node => visible(node) && /^Newest(?:\s|$)/i.test(clean(node.innerText)));
+      if (option) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!option) return false;
+    option.click();
+    for (let attempt = 0; attempt < 30; attempt++) {
+      if (!collecting) return false;
+      if (clean(sort.innerText) === 'Newest' || [...document.querySelectorAll('button,[role="button"]')]
+        .some(node => visible(node) && clean(node.innerText) === 'Newest')) {
+        await new Promise(resolve => setTimeout(resolve, 600));
+        return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return false;
+  }
+
+  async function collect() {
     show();
     if (!postPage()) { status('Open a Facebook post first.'); return; }
     if (collecting) return;
@@ -193,9 +222,10 @@
     queue.length = 0; seen.clear(); index = 0;
     collecting = autoPlay = true;
     render();
-    status('Collecting comments from this post.');
-    const sort = [...document.querySelectorAll('button,[role="button"]')].find(node => /^(Most relevant|Newest)$/i.test(clean(node.innerText)));
-    if (sort) { sort.click(); setTimeout(() => [...document.querySelectorAll('[role="menuitem"],[role="menu"] *')].find(node => clean(node.innerText).startsWith('All comments'))?.click(), 250); }
+    status('Sorting comments by newest.');
+    const newest = await selectNewest();
+    if (!collecting) return;
+    status(newest ? 'Newest selected. Collecting comments.' : 'Newest sort unavailable. Collecting visible comments.');
     timer = {started:Date.now(), idle:0, clicks:0, moves:0, id:setInterval(tick, 1000)};
     tick();
   }
