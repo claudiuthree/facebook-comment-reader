@@ -33,7 +33,7 @@
   <div class="now" aria-live="polite"><p class="eyebrow" id="cr-count">Loading comments</p><p class="author" id="cr-author"></p><p class="body" id="cr-body"></p></div>
   <div class="controls"><button type="button" id="cr-prev" aria-label="Previous comment">Previous</button><button type="button" class="primary" id="cr-play" disabled>Read continuously</button><button type="button" id="cr-next" aria-label="Next comment">Next</button><button type="button" id="cr-stop">Stop</button><label for="cr-rate">Speed <select id="cr-rate"><option value="0.8">0.8×</option><option value="1" selected>1×</option><option value="1.2">1.2×</option><option value="1.5">1.5×</option></select></label></div>
   <p id="cr-status" class="status" role="status">Tap Read continuously to hear all loaded comments from the selected one.</p>
-  <div class="listhead"><strong>Comments loaded from this post</strong><span class="sub">735 captured text comments and replies · 8 Nov 2026</span></div>
+  <div class="listhead"><strong>Comments loaded from this post</strong><span class="sub">667 unique text comments and replies · 8 Nov 2026</span></div>
   <div id="cr-list" class="list" aria-label="Select a comment"></div>
   <script>
     (()=>{
@@ -49,9 +49,10 @@
       q('#cr-prev').addEventListener('click',()=>{if(index>0){stop();index--;render();q('#cr-status').textContent='Previous comment selected.'}});
       q('#cr-next').addEventListener('click',()=>{if(index<comments.length-1){stop();index++;render();q('#cr-status').textContent='Next comment selected.'}});
       const list=q('#cr-list');function buildList(){comments.forEach((c,i)=>{const b=document.createElement('button');b.type='button';b.className='item';const name=document.createElement('b'),body=document.createElement('span');name.textContent=`${i+1}. ${c[0]}`;body.textContent=c[1];b.append(name,body);b.addEventListener('click',()=>{stop();index=i;render();q('#cr-status').textContent='Comment selected. Tap Read continuously.'});list.append(b)});render();}
-      fetch('./comments.json').then(r=>{if(!r.ok)throw new Error('Comments unavailable');return r.json()}).then(data=>{comments=data.filter(x=>x&&x.name&&x.text).map(x=>[x.name,x.text]);q('#cr-play').disabled=!comments.length;q('.listhead .sub').textContent=`${comments.length} captured text comments and replies · 8 Nov 2026`;q('#cr-status').textContent='Tap Read continuously to start.';buildList()}).catch(()=>{q('#cr-status').textContent='The comments could not be loaded. Please refresh.'});
+      fetch('./comments.json').then(r=>{if(!r.ok)throw new Error('Comments unavailable');return r.json()}).then(data=>{comments=data.filter(x=>x&&x.name&&x.text).map(x=>[x.name,x.text]);q('#cr-play').disabled=!comments.length;q('.listhead .sub').textContent=`${comments.length} unique text comments and replies · 8 Nov 2026`;q('#cr-status').textContent='Tap Read continuously to start.';buildList()}).catch(()=>{q('#cr-status').textContent='The comments could not be loaded. Please refresh.'});
     })();
   </script>
 </div>
 
 </body></html>
+
