@@ -16,10 +16,11 @@ def js_data(items):
 
 
 def make_script(items, remote):
-    remote_load = '''fetch('./comments.json')
+    remote_load = '''const requestVersion=version;
+    fetch('./comments.json')
       .then(response=>{if(!response.ok)throw new Error('Fetch failed');return response.json()})
-      .then(items=>{const added=add(items);finishLoad();status(`${comments.length} comments ready. ${added} loaded in the background.`)})
-      .catch(()=>{finishLoad();status('Saved comments are ready. More comments could not be loaded.')});''' if remote else ''
+      .then(items=>{if(requestVersion!==version)return;const added=add(items);finishLoad();status(`${comments.length} comments ready. ${added} loaded in the background.`)})
+      .catch(()=>{if(requestVersion!==version)return;finishLoad();status('Saved comments are ready. More comments could not be loaded.')});''' if remote else ''
     return (script.replace('__INITIAL_COMMENTS__', js_data(items))
                   .replace('__PENDING_LOADS__', '1' if remote else '0')
                   .replace('__REMOTE_LOAD__', remote_load))
@@ -28,6 +29,18 @@ def make_script(items, remote):
 html = page.read_text(encoding='utf-8-sig')
 html = html.replace('<p class="author" id="cr-author"></p>', '')
 html = html.replace('    #comment-reader .author{font-weight:600;margin-bottom:8px}\n', '')
+html = html.replace('<p class="sub">Paintwitheroy', '<p class="sub" id="cr-sub">Paintwitheroy')
+html = html.replace('<a href="https://www.facebook.com/61591138393698/posts/122127670083371279/"', '<a id="cr-openpost" href="https://www.facebook.com/61591138393698/posts/122127670083371279/"')
+if 'id="cr-form"' not in html:
+    html = html.replace('    #comment-reader .import{',
+        '    #comment-reader .postform{margin:16px 0}\n'
+        '    #comment-reader .postform label{display:block;margin-bottom:6px;font-weight:600}\n'
+        '    #comment-reader .postform div{display:flex;gap:8px;flex-wrap:wrap}\n'
+        '    #comment-reader .postform input{flex:1 1 260px;min-width:0;font:inherit;border-radius:10px;border:1px solid light-dark(#cad4e0,#556174);background:light-dark(#fff,#263242);color:inherit;padding:9px 13px;min-height:42px}\n'
+        '    #comment-reader .import{')
+    html = html.replace('  <div class="now"',
+        '  <form id="cr-form" class="postform"><label for="cr-post-url">Facebook post link</label><div><input id="cr-post-url" type="url" value="https://www.facebook.com/61591138393698/posts/122127670083371279/" placeholder="Paste or drop a Facebook post link" required><button type="submit">Use this post</button></div></form>\n'
+        '  <div class="now"')
 if 'id="cr-paste"' not in html:
     html = html.replace('    #comment-reader .status{',
         '    #comment-reader textarea{width:100%;min-height:96px;resize:vertical;font:inherit;border-radius:10px;border:1px solid light-dark(#cad4e0,#556174);background:light-dark(#fff,#263242);color:inherit;padding:10px}\n'
