@@ -18,6 +18,16 @@ for item in second_raw:
         second_seen.add(key)
         second.append({'name': 'Comment', 'text': body})
 Path('public/paintwithroy-comments.json').write_text(json.dumps(second, ensure_ascii=False), encoding='utf-8')
+gloves_raw = json.loads(Path('data/gloves-comments.json').read_text(encoding='utf-8-sig'))
+gloves = []
+gloves_seen = set()
+for item in gloves_raw:
+    body = re.sub(r'\s+', ' ', item['text'].replace('\ufffc', '')).strip()
+    key = ''.join(char for char in body.casefold() if char.isalnum())
+    if key and key not in gloves_seen:
+        gloves_seen.add(key)
+        gloves.append({'name': 'Comment', 'text': body})
+Path('public/gloves-comments.json').write_text(json.dumps(gloves, ensure_ascii=False), encoding='utf-8')
 script = Path('reader.js').read_text(encoding='utf-8')
 
 
@@ -29,6 +39,7 @@ def make_script(items, remote):
     saved_posts = {
         'https://facebook.com/61591138393698/posts/122127670083371279': {'title': 'Paintwitheroy · “What’s one thing that drives you crazy as a painter?”', 'total': len(data), 'initial': [[item['name'], item['text']] for item in (data[:30] if remote else data)], 'path': './comments.json' if remote else None},
         'https://facebook.com/paintwithroy/posts/pfbid0od9Npj8uWk2zFGYUK1FqQKVE8AvNg4fYbFGJ2DVonBmEeqa22NBnRwDKpbxdW1T5l': {'title': 'Paintwithroy · painter advice post', 'total': len(second), 'initial': [[item['name'], item['text']] for item in (second[:30] if remote else second)], 'path': './paintwithroy-comments.json' if remote else None},
+        'https://facebook.com/paintwithroy/posts/pfbid08vzD1LjCHTvwQZE3mHvBKU6mCY8MCWSgh5ANFMMFPN7vZVg6fxq7BoYpVxs2pe7Dl': {'title': 'Paintwitheroy · “Why are some of you against wearing gloves?”', 'total': len(gloves), 'initial': [[item['name'], item['text']] for item in gloves], 'path': None},
     }
     remote_load = '''const requestVersion=version;
     const controller=new AbortController();
@@ -108,4 +119,4 @@ fragment = fragment.replace(f'max="{len(data)}" value="30"', f'max="{len(data)}"
 fragment = fragment.replace(f'30 of {len(data)} saved comments loaded. You can start listening now.', f'{len(data)} comments ready for this post.')
 if inline_path:
     Path(inline_path).write_text(fragment + '\n', encoding='utf-8')
-print(f'Built phone and in-chat readers with {len(data)} and {len(second)} deduplicated comments')
+print(f'Built phone and in-chat readers with {len(data)}, {len(second)} and {len(gloves)} deduplicated comments')
