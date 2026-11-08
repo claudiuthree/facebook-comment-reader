@@ -8,6 +8,8 @@ The app captured 735 distinct Facebook entries on 8 November 2026. It plays 667 
 
 The phone page includes its first 30 comments in the HTML, so playback can begin as soon as the page opens. It buffers the other 637 saved comments in the background and continues playback as they arrive. Paste additional comments, one per line or as a JSON array, to add them to the listening queue without stopping playback. Duplicates are skipped. Pasted comments are saved in this browser's local storage and restored after a refresh.
 
+A progress bar beside the link field shows how many saved comments are ready and the progress of a pasted batch. For other Facebook links, it immediately shows that no comments are available from the link alone.
+
 Audio uses the browser Speech Synthesis API. Keep the page open while listening.
 Commenter names are not displayed or spoken.
 

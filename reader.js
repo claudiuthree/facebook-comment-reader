@@ -6,7 +6,8 @@
   const seen=new Set();
   const list=q('#cr-list');
   const knownPost='https://facebook.com/61591138393698/posts/122127670083371279';
-  let activeUrl=knownPost,version=0;
+  const knownTotal=__KNOWN_TOTAL__;
+  let activeUrl=knownPost,version=0,savedLoaded=0,importProgress=null;
   const storageKey=()=>`facebook-comment-reader-imports-v2:${activeUrl}`;
   let index=0,playing=false,waiting=false,token=0,pendingLoads=__PENDING_LOADS__;
   const initial=__INITIAL_COMMENTS__;
@@ -15,11 +16,20 @@
   const identity=text=>Array.from(text.normalize('NFKC').toLowerCase()).filter(char=>/[\p{L}\p{N}]/u.test(char)).join('');
   function status(message){q('#cr-status').textContent=message;}
   function countLabel(){q('.listhead .sub').textContent=`${comments.length} unique comments ready${pendingLoads?' · buffering more':''}`;}
+  function progress(){
+    let done,total,message;
+    if(importProgress){done=importProgress.done;total=importProgress.total;message=`Processing copied comments: ${done} of ${total}`}
+    else if(activeUrl===knownPost&&pendingLoads&&savedLoaded<knownTotal){done=savedLoaded;total=knownTotal;message=`${done} of ${total} saved comments loaded. You can start listening now.`}
+    else if(comments.length){done=comments.length;total=comments.length;message=`${done} comments ready for this post.`}
+    else{done=0;total=1;message='No comments loaded from this link. Copy and paste them below.'}
+    const bar=q('#cr-progress');bar.max=total;bar.value=done;
+    bar.setAttribute('aria-valuetext',message);q('#cr-progress-text').textContent=message;
+  }
   function render(){
     if(!comments.length){
       q('#cr-count').textContent='No comments loaded';q('#cr-body').textContent='';
       q('#cr-prev').disabled=true;q('#cr-next').disabled=true;q('#cr-play').disabled=true;
-      countLabel();return;
+      countLabel();progress();return;
     }
     const current=comments[index];
     q('#cr-count').textContent=`Comment ${index+1} of ${comments.length}${pendingLoads?' · buffering':''}`;
@@ -29,7 +39,7 @@
     q('#cr-play').disabled=false;
     q('#cr-play').textContent=playing?'Pause':synth&&synth.paused?'Resume':'Read continuously';
     list.querySelectorAll('button').forEach((button,i)=>button.setAttribute('aria-current',String(i===index)));
-    countLabel();
+    countLabel();progress();
   }
   function add(items){
     let added=0;
@@ -111,13 +121,13 @@
     const raw=q('#cr-paste').value;const items=parse(raw);
     if(!items.length){status('Paste comments first, one per line or as a JSON array.');return}
     const importVersion=version;
-    pendingLoads++;render();status('Adding copied comments while playback remains available.');
+    importProgress={done:0,total:items.length};pendingLoads++;render();status('Adding copied comments while playback remains available.');
     let offset=0,added=0;
     function batch(){
       if(importVersion!==version)return;
-      added+=add(items.slice(offset,offset+100));offset+=100;
+      added+=add(items.slice(offset,offset+100));offset+=100;importProgress.done=offset;render();
       if(offset<items.length)setTimeout(batch,0);
-      else{saveImport(items);q('#cr-paste').value='';finishLoad();status(`Added ${added} new ${added===1?'comment':'comments'}; repeated text skipped.`)}
+      else{saveImport(items);q('#cr-paste').value='';importProgress=null;finishLoad();status(`Added ${added} new ${added===1?'comment':'comments'}; repeated text skipped.`)}
     }
     batch();
   });
@@ -138,18 +148,18 @@
     const next=canonical(raw);
     if(!next){status('Enter a Facebook post link.');return}
     if(next===activeUrl){status(`${comments.length} comments ready for this post.`);return}
-    stop();version++;activeUrl=next;comments.length=0;seen.clear();list.replaceChildren();index=0;pendingLoads=0;
+    stop();version++;activeUrl=next;comments.length=0;seen.clear();list.replaceChildren();index=0;pendingLoads=0;savedLoaded=0;importProgress=null;
     try{localStorage.setItem('facebook-comment-reader-active-post',next)}catch{}
     q('#cr-openpost').href=next;q('#cr-post-url').value=next;
     q('#cr-sub').textContent=next===knownPost?'Paintwitheroy · “What’s one thing that drives you crazy as a painter?”':'Selected Facebook post';
-    if(next===knownPost){pendingLoads=__PENDING_LOADS__;add(initial);restore();loadSaved();status(`${comments.length} comments ready. Buffering the saved set.`)}
+    if(next===knownPost){pendingLoads=__PENDING_LOADS__;savedLoaded=initial.length;add(initial);restore();loadSaved();status(`${comments.length} comments ready. Buffering the saved set.`)}
     else{restore();render();status(comments.length?`${comments.length} saved comments ready for this post.`:'Post selected. Open it, copy its comments, then paste them below. Facebook does not provide these comments to the reader from the link alone.')}
   }
   q('#cr-form').addEventListener('submit',event=>{event.preventDefault();usePost(q('#cr-post-url').value)});
   root.addEventListener('dragover',event=>{if(!event.target.closest('textarea'))event.preventDefault()});
   root.addEventListener('drop',event=>{if(event.target.closest('textarea'))return;const raw=event.dataTransfer.getData('text/uri-list')||event.dataTransfer.getData('text/plain');if(canonical(raw)){event.preventDefault();usePost(raw)}});
 
-  add(initial);
+  savedLoaded=initial.length;add(initial);
   restore();
   status(`${comments.length} comments ready. Tap Read continuously to start.`);
   loadSaved();
