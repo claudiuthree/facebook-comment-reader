@@ -1,0 +1,4 @@
+node_modules/
+.wrangler/
+check.js
+prepare_site.py
