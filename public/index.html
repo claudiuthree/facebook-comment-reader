@@ -48,6 +48,7 @@
   const comments=[];
   const seen=new Set();
   const list=q('#cr-list');
+  const storageKey='facebook-comment-reader-imports-v1';
   let index=0,playing=false,waiting=false,token=0,pendingLoads=1;
   const initial=[["Karen Anderson","Not having rags and water"],["Jim Adamski","When homeowners break out flood light for final inspection"],["Tony Hallum","Jim Adamski punch list here we come !"],["Greg Edge","Jim Adamski during the day too smfh"],["Paul Lillyman","Jim Adamski yeah, that pissed me off too. Bloody condition wasn't lit up to that degree."],["Deborah Gross","Jim Adamski. That is crazy. I knew homeowners that would do that and one building contractor we painted for."],["Michael Didak","Jim Adamski funny but true"],["Mikey Evans","Jim Adamski had a painting company in New Zealand for 30 years we always light checked our work for imperfections customers can be so picky but never had many come backs"],["Donald Raney","Mikey Evans I can go behind anyone after they have touched up with a light and find something. But i don't because I know,it can't be perfect."],["Randy Kyle","Jim Adamski I had to revisit the backside of a toilet like 5 times forva lady once. I don't know how she could see backthere. Lol"],["Bill Davis","Jim Adamski if u do ur job properly and u have nothing to worry about"],["Lars Nelson","Jim Adamski veins be popping when that happens Homie don't play that though."],["Jamie Benko","Jim Adamski wouldn't bother you if job was done correctly. Be nothing to put painters tape on lol"],["Robert A Entel","Jim Adamski we always called that the truth finder ,after you flash them with the halogen they just see stars"],["Jenny Liske","Jim Adamski oh... and 5000 pieces of tape after the PRIME coat!!! Ugh... just don't look at stuff till AFTER I put the final coat of paint on.. OK???"],["Kevin Whitaker","Jim Adamski we had one last breakout the cop flashlight q"],["Laura Richard","Other people caulking for me"],["Don E Reaves","Popcorn celling especially when you have to repaint it and have to scrap the damn thing"],["Greg Murray","Laura Richard 200%"],["Laura Richard","Greg Murray especially when it’s the first coat of paint GIPHY"],["Neal Jocher","Laura Richard Big one right there. On a jobsite once. 4 of the paint crew in the room. Carpenter says,”I can caulk it if you want?” 4 of us at once,”NO!”"],["Matt O'Daniel","Neal Jocher never seen trim Carpenter who could finish caulk. Hollar at me if lm on job site. I'll do it"],["Oriano Guadagno","Laura Richard and filling, anything basically"],["Chris Saunders","Laura Richard I agree. One time I went to a new construction and contractor told me everything is caulked ready to go. Calk was thick, some of it wasn't even pressed in and all over hinges and walls. Top it all off the trim was even sanded. Nightmare for me and the contractor. His bill had a lot of extras added on."],["Bobbi Brandt","Laura Richard i wish there were a double like button for this"],["Laura Richard","Bobbi Brandt those of us who know how to caulk won’t let anyone else do it lol"],["Neal Jocher","Laura Richard It’s a damn art in itself. I don’t know why they call it painting sometimes. If you can’t prep you can do a lot of damage to a new build with caulk. I was on a site and this new kid caulked the new Anderson windows shut because nobody was watching him and apparently he was not vetted properly. Sealed those windows right up. Lol"],["Alan Frank","Laura Richard right, gaping or caulking as you call it is a art. I hate when people leave product over the areas it's not supposed to be, paint shows everything"],["Noel Burnett","The client looking at 1st wall and saying \"thats not the same color as the wall youre working on\" Bruhhhh This wall is WET!"],["Michael Gavin","Noel Burnett get it all the time that wall looks a different colour let it dry then they are like holding payment until it dries and then says payment sent thank you very much can’t win mate can you"]];
 
@@ -132,6 +133,18 @@
       return match?{name:match[1],text:match[2]}:{name:'Copied comment',text:line};
     });
   }
+  function saveImport(items){
+    try{
+      const saved=JSON.parse(localStorage.getItem(storageKey)||'[]');
+      const keys=new Set(saved.map(item=>identity(clean(Array.isArray(item)?item[1]:item.text||item.message||''))));
+      for(const item of items){
+        if(!item)continue;
+        const key=identity(clean(Array.isArray(item)?item[1]:item.text||item.message||''));
+        if(key&&!keys.has(key)){saved.push(item);keys.add(key)}
+      }
+      localStorage.setItem(storageKey,JSON.stringify(saved));
+    }catch{}
+  }
   q('#cr-add').addEventListener('click',()=>{
     const raw=q('#cr-paste').value;const items=parse(raw);
     if(!items.length){status('Paste comments first, one per line or as a JSON array.');return}
@@ -140,12 +153,13 @@
     function batch(){
       added+=add(items.slice(offset,offset+100));offset+=100;
       if(offset<items.length)setTimeout(batch,0);
-      else{q('#cr-paste').value='';finishLoad();status(`Added ${added} new comments; repeated text skipped.`)}
+      else{saveImport(items);q('#cr-paste').value='';finishLoad();status(`Added ${added} new ${added===1?'comment':'comments'}; repeated text skipped.`)}
     }
     batch();
   });
 
   add(initial);
+  try{add(JSON.parse(localStorage.getItem(storageKey)||'[]'))}catch{}
   status(`${comments.length} comments ready. Tap Read continuously to start.`);
   fetch('./comments.json')
       .then(response=>{if(!response.ok)throw new Error('Fetch failed');return response.json()})

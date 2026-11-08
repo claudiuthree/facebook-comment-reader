@@ -5,6 +5,7 @@
   const comments=[];
   const seen=new Set();
   const list=q('#cr-list');
+  const storageKey='facebook-comment-reader-imports-v1';
   let index=0,playing=false,waiting=false,token=0,pendingLoads=__PENDING_LOADS__;
   const initial=__INITIAL_COMMENTS__;
 
@@ -89,6 +90,18 @@
       return match?{name:match[1],text:match[2]}:{name:'Copied comment',text:line};
     });
   }
+  function saveImport(items){
+    try{
+      const saved=JSON.parse(localStorage.getItem(storageKey)||'[]');
+      const keys=new Set(saved.map(item=>identity(clean(Array.isArray(item)?item[1]:item.text||item.message||''))));
+      for(const item of items){
+        if(!item)continue;
+        const key=identity(clean(Array.isArray(item)?item[1]:item.text||item.message||''));
+        if(key&&!keys.has(key)){saved.push(item);keys.add(key)}
+      }
+      localStorage.setItem(storageKey,JSON.stringify(saved));
+    }catch{}
+  }
   q('#cr-add').addEventListener('click',()=>{
     const raw=q('#cr-paste').value;const items=parse(raw);
     if(!items.length){status('Paste comments first, one per line or as a JSON array.');return}
@@ -97,12 +110,13 @@
     function batch(){
       added+=add(items.slice(offset,offset+100));offset+=100;
       if(offset<items.length)setTimeout(batch,0);
-      else{q('#cr-paste').value='';finishLoad();status(`Added ${added} new comments; repeated text skipped.`)}
+      else{saveImport(items);q('#cr-paste').value='';finishLoad();status(`Added ${added} new ${added===1?'comment':'comments'}; repeated text skipped.`)}
     }
     batch();
   });
 
   add(initial);
+  try{add(JSON.parse(localStorage.getItem(storageKey)||'[]'))}catch{}
   status(`${comments.length} comments ready. Tap Read continuously to start.`);
   __REMOTE_LOAD__
 })();
