@@ -3,12 +3,13 @@
   const queue = [];
   const seen = new Set();
   let index = 0, collecting = false, playing = false, paused = false, autoPlay = false, timer, speechToken = 0;
-  let host, panel, shadow;
+  let host, panel, shadow, statusText = '';
   const clean = text => String(text || '').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}\uFE0F\u200D]/gu, '').replace(/\s+/g, ' ').trim();
   const keyOf = text => text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
   const postPage = () => /\/(?:posts\/|reel\/|photo\/?|videos\/|permalink\.php)/.test(location.pathname) || !!document.querySelector('[role="article"][aria-label^="Comment by"]');
   const button = id => shadow.getElementById(id);
-  const status = message => { if (shadow) button('status').textContent = message; };
+  const status = message => { statusText = message; if (shadow) button('status').textContent = message; };
+  const state = () => ({ok:true, count:queue.length, index, comment:queue[index] || '', collecting, playing, paused, status:statusText});
 
   function render() {
     if (!shadow) return;
@@ -242,10 +243,20 @@
   }
 
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
-    if (message?.type !== 'collect-and-play') return;
-    if (!postPage()) { respond({ok:false,error:'Open a Facebook post first.'}); return; }
-    collect();
-    respond({ok:true});
+    if (message?.type === 'reader-state') { respond(state()); return; }
+    if (message?.type === 'collect-and-play') {
+      if (!postPage()) { respond({ok:false,error:'Open a Facebook post first.'}); return; }
+      collect(); respond(state()); return;
+    }
+    if (message?.type === 'reader-control') {
+      if (message.action === 'clear') clearCollection();
+      else if (message.action === 'play') toggle();
+      else if (message.action === 'previous') step(-1);
+      else if (message.action === 'next') step(1);
+      else if (message.action === 'stop') stop();
+      else { respond({ok:false,error:'Unknown control.'}); return; }
+      respond(state());
+    }
   });
   setInterval(() => {
     if (!host && postPage()) { createPanel(); panel.hidden = true; button('launcher').hidden = false; }
