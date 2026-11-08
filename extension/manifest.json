@@ -1,17 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Facebook Comment Reader Collector",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Collect visible comments from a Facebook post you open in Chrome and send them to the reader tab.",
   "permissions": ["tabs"],
   "host_permissions": [
     "https://www.facebook.com/*",
-    "https://facebook-comment-reader.claudiuone.workers.dev/*"
+    "https://facebook-comment-reader.claudiuone.workers.dev/*",
+    "https://comments.claudiuone.workers.dev/*"
   ],
   "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
-      "matches": ["https://facebook-comment-reader.claudiuone.workers.dev/*"],
+      "matches": ["https://facebook-comment-reader.claudiuone.workers.dev/*", "https://comments.claudiuone.workers.dev/*"],
       "js": ["reader-bridge.js"],
       "run_at": "document_idle"
     },

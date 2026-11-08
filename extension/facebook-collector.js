@@ -19,6 +19,22 @@ function clickMore() {
   return candidates.length;
 }
 
+function advanceComments() {
+  const articles = [...document.querySelectorAll('[role="article"][aria-label^="Comment by"]')]
+    .filter(article => article.getClientRects().length);
+  const last = articles.at(-1);
+  if (!last) return false;
+  for (let container = last.parentElement; container; container = container.parentElement) {
+    if (container.scrollHeight <= container.clientHeight + 100) continue;
+    if (!/auto|scroll/.test(getComputedStyle(container).overflowY)) continue;
+    const before = container.scrollTop;
+    container.scrollTop = container.scrollHeight;
+    return container.scrollTop > before;
+  }
+  last.scrollIntoView({block: 'end', behavior: 'instant'});
+  return false;
+}
+
 async function showAllComments() {
   const button = [...document.querySelectorAll('button,[role="button"]')]
     .find(element => element.getClientRects().length && /^(Most relevant|Newest)$/i.test(clean(element.innerText)));
@@ -49,10 +65,9 @@ async function collect() {
         chrome.runtime.sendMessage({type: 'batch', items: fresh.slice(i, i + 100).map(text => ({text}))});
       }
       const more = clickMore();
-      const articles = [...document.querySelectorAll('[role="article"][aria-label^="Comment by"]')];
-      articles.at(-1)?.scrollIntoView({block: 'end', behavior: 'instant'});
-      if (!articles.length) window.scrollTo(0, document.body.scrollHeight);
-      idle = fresh.length || more ? 0 : idle + 1;
+      const advanced = advanceComments();
+      if (!comments.length) window.scrollTo(0, document.body.scrollHeight);
+      idle = fresh.length || more || advanced ? 0 : idle + 1;
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
     if (!seen.size) chrome.runtime.sendMessage({type: 'error', error: 'No visible comments were found. Facebook may require sign-in or a different page layout.'});

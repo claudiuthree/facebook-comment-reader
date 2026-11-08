@@ -1,8 +1,10 @@
 # Facebook Comment Reader
 
+Live reader: https://comments.claudiuone.workers.dev/. The previous `facebook-comment-reader.claudiuone.workers.dev` address and its unexpired share links remain available. Browser-saved queues belong to each address separately; open an existing share link on the new address to load that queue there.
+
 A mobile-friendly continuous text-to-speech reader for the public [Paintwitheroy post](https://www.facebook.com/61591138393698/posts/122127670083371279/).
 
-Paste or drop any Facebook post URL into the link field. Each post gets its own comment queue and its own browser-stored imported comments. Three Paintwitheroy posts have bundled comment snapshots, including the [painter advice post](https://www.facebook.com/paintwithroy/posts/pfbid0od9Npj8uWk2zFGYUK1FqQKVE8AvNg4fYbFGJ2DVonBmEeqa22NBnRwDKpbxdW1T5l) and the [gloves post](https://www.facebook.com/paintwithroy/posts/pfbid08vzD1LjCHTvwQZE3mHvBKU6mCY8MCWSgh5ANFMMFPN7vZVg6fxq7BoYpVxs2pe7Dl). For new posts, the Windows Chrome collector in `extension/` can open the post in the existing signed-in browser, send visible comment text to the reader in batches, and close the Facebook tab. Setup instructions are at `/collector-setup.html`. The collector depends on Facebook's page layout and may not capture every comment or reply.
+Paste or drop any Facebook post URL into the link field. Each post gets its own comment queue and its own browser-stored imported comments. Three Paintwitheroy posts have bundled comment snapshots, including the [painter advice post](https://www.facebook.com/paintwithroy/posts/pfbid0od9Npj8uWk2zFGYUK1FqQKVE8AvNg4fYbFGJ2DVonBmEeqa22NBnRwDKpbxdW1T5l) and the [gloves post](https://www.facebook.com/paintwithroy/posts/pfbid08vzD1LjCHTvwQZE3mHvBKU6mCY8MCWSgh5ANFMMFPN7vZVg6fxq7BoYpVxs2pe7Dl). For new posts, the Windows Chrome collector in `extension/` can open the post in the existing signed-in browser, send visible comment text to the reader in batches, scroll the active Facebook comment panel for more batches, and close the Facebook tab. Setup instructions are at `/collector-setup.html`. The collector depends on Facebook's page layout and may not capture every comment or reply.
 
 The app captured 735 distinct Facebook entries on 8 November 2026. It plays 667 unique text comments and replies after removing 68 repeated texts (ignoring case, spacing, and punctuation). The original capture is in `data/comments-raw.json`. Facebook showed 983 in its comment counter, but the remaining entries were not verified or included. Emojis are omitted from displayed and spoken text. New comments are not fetched automatically.
 
@@ -24,6 +26,8 @@ The painter advice snapshot was captured from visible Facebook comments on 8 Nov
 The gloves post snapshot was captured on the same date and contains 14 visible text comments. Facebook showed 21 comments including replies, so this is a partial set.
 
 Deploy with `npm install` and `npm run deploy`.
+
+After changing the unpacked extension, reload it in `chrome://extensions` so the new reader address is connected.
 
 Run `python build_reader.py` after editing `reader.js` or the comment data. Set `INLINE_READER_PATH` to also update the Codex in-chat fragment.
 

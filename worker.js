@@ -1,4 +1,7 @@
-const origin = 'https://facebook-comment-reader.claudiuone.workers.dev';
+const origins = new Set([
+  'https://comments.claudiuone.workers.dev',
+  'https://facebook-comment-reader.claudiuone.workers.dev'
+]);
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
   status,
   headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff'}
@@ -8,7 +11,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/share' && request.method === 'POST') {
-      if (request.headers.get('origin') !== origin || request.headers.get('x-reader-share') !== '1') return json({error: 'Forbidden'}, 403);
+      if (!origins.has(request.headers.get('origin')) || request.headers.get('x-reader-share') !== '1') return json({error: 'Forbidden'}, 403);
       const declared = Number(request.headers.get('content-length') || 0);
       if (declared > 200000) return json({error: 'Queue is too large'}, 413);
       const raw = await request.text();

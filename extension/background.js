@@ -34,7 +34,7 @@ async function beginCollection(job) {
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (message?.type === 'start') {
     const readerUrl = sender.tab?.url || '';
-    if (!readerUrl.startsWith('https://facebook-comment-reader.claudiuone.workers.dev/') || !validPost(message.url)) return;
+    if (!/^https:\/\/(?:comments|facebook-comment-reader)\.claudiuone\.workers\.dev\//.test(readerUrl) || !validPost(message.url)) return;
     (async () => {
       for (const job of [...jobs.values()]) if (job.readerTabId === sender.tab.id) await finish(job, 'A different post was selected.');
       const facebookTab = await chrome.tabs.create({url: message.url, active: true});
