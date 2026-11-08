@@ -137,6 +137,14 @@ function move(delta) {
   else { speechSynthesis.cancel(); setStatus(`Comment ${next + 1} selected.`); }
 }
 
+async function copyComments() {
+  if (!player.items.length) { setStatus('Collect comments before copying.'); return; }
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(player.items));
+    setStatus(`Copied ${player.items.length} comments. Paste them into the reader to share with your phone.`);
+  } catch { setStatus('Could not copy comments. Check Chrome clipboard permission.'); }
+}
+
 function showControls() {
   if (controls) {
     controls.panel.hidden = false;
@@ -158,16 +166,17 @@ function showControls() {
     #panel{position:relative;display:flex;flex-direction:column;width:min(340px,calc(100vw - 32px));height:min(315px,calc(100vh - 32px));min-width:min(260px,calc(100vw - 16px));min-height:min(260px,calc(100vh - 16px));padding:14px;border:1px solid #8ba5c5;border-radius:14px;background:#111b2a;color:#f5f8fc;box-shadow:0 16px 40px #0009;line-height:1.4;overflow:auto}
     #panel[hidden],#launcher[hidden]{display:none}header{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:700;font-size:15px;cursor:move;touch-action:none;user-select:none}#hide{background:none;color:#c6d6ec;border:0;padding:4px 6px;cursor:pointer}
     #count{margin:10px 0 2px;color:#b9d4fa}#position{font-size:12px;color:#b8c5d6}#comment{flex:1;min-height:40px;overflow:auto;margin:5px 0 10px;white-space:pre-wrap}
-    #collect{width:100%;padding:10px;border:0;border-radius:8px;background:#9fc7ff;color:#10203a;font-weight:700}
+    #collect{width:100%;padding:10px;border:0;border-radius:8px;background:#9fc7ff;color:#10203a;font-weight:700}#copy{margin-top:7px;padding:5px;border:0;background:none;color:#b9d4fa;text-align:left}
     nav{display:flex;gap:6px;margin-top:9px}nav button{flex:1;min-width:0;padding:7px 4px;border:1px solid #627996;border-radius:7px;background:#24364e;color:#fff}
     #status{min-height:18px;margin:10px 0 0;font-size:12px;color:#c6d6ec}#resize{position:absolute;right:3px;bottom:3px;width:20px;height:20px;padding:0;border:0;background:linear-gradient(135deg,transparent 46%,#8ba5c5 47%,#8ba5c5 56%,transparent 57%);cursor:nwse-resize;touch-action:none}
-  </style><button id="launcher" type="button" hidden>Comment reader</button><section id="panel" aria-label="Comment reader controls"><header title="Drag to move"><span>Comment reader</span><button id="hide" type="button">Hide</button></header><p id="count"></p><div id="position"></div><div id="comment"></div><button id="collect" type="button">Collect and play</button><nav><button id="previous" type="button">Previous</button><button id="play" type="button">Play</button><button id="next" type="button">Next</button><button id="stop" type="button">Stop</button></nav><p id="status" role="status"></p><button id="resize" type="button" aria-label="Drag to resize player" title="Drag to resize"></button></section>`;
+  </style><button id="launcher" type="button" hidden>Comment reader</button><section id="panel" aria-label="Comment reader controls"><header title="Drag to move"><span>Comment reader</span><button id="hide" type="button">Hide</button></header><p id="count"></p><div id="position"></div><div id="comment"></div><button id="collect" type="button">Collect and play</button><button id="copy" type="button">Copy comments for phone</button><nav><button id="previous" type="button">Previous</button><button id="play" type="button">Play</button><button id="next" type="button">Next</button><button id="stop" type="button">Stop</button></nav><p id="status" role="status"></p><button id="resize" type="button" aria-label="Drag to resize player" title="Drag to resize"></button></section>`;
   document.documentElement.append(host);
   const get = id => shadow.getElementById(id);
   controls = {host, panel: get('panel'), launcher: get('launcher'), count: get('count'), position: get('position'), comment: get('comment'), status: get('status'), collect: get('collect'), previous: get('previous'), play: get('play'), next: get('next')};
   get('hide').addEventListener('click', () => { controls.panel.hidden = true; controls.launcher.hidden = false; });
   get('launcher').addEventListener('click', showControls);
   controls.collect.addEventListener('click', startLocal);
+  get('copy').addEventListener('click', copyComments);
   controls.previous.addEventListener('click', () => move(-1));
   controls.next.addEventListener('click', () => move(1));
   controls.play.addEventListener('click', toggleSpeech);

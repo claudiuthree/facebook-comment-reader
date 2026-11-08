@@ -57,6 +57,7 @@ def make_script(items, remote):
 
 
 html = page.read_text(encoding='utf-8-sig')
+html = html.replace('Set up automatic collection in Windows Chrome', 'Set up the Windows Chrome mini player')
 html = html.replace('<p class="author" id="cr-author"></p>', '')
 html = html.replace('    #comment-reader .author{font-weight:600;margin-bottom:8px}\n', '')
 html = html.replace('<p class="sub">Paintwitheroy', '<p class="sub" id="cr-sub">Paintwitheroy')
@@ -77,7 +78,7 @@ if 'id="cr-collector-state"' not in html:
         '  <div class="now"', 1)
 if 'id="cr-share"' not in html:
     html = html.replace('  <div class="now"',
-        '  <p class="sub"><a href="./collector-setup.html" target="_blank" rel="noopener">Set up automatic collection in Windows Chrome</a></p>\n'
+        '  <p class="sub"><a href="./collector-setup.html" target="_blank" rel="noopener">Set up the Windows Chrome mini player</a></p>\n'
         '  <div class="now"', 1)
     html = html.replace('  <div class="listhead">',
         '  <div class="share"><button type="button" id="cr-share">Send this queue to my phone</button><p><a id="cr-phone-link" hidden></a></p></div>\n'

@@ -25,7 +25,7 @@
   }
   function collectorState(message){const field=q('#cr-collector-state');if(field)field.textContent=message;}
   function startCollector(){
-    if(!collectorReady){collectorState('Chrome collector is not connected. Install it on the PC to collect a new post automatically.');log('warning','Chrome collector is not connected; no Facebook tab was opened.');return}
+    if(!collectorReady){collectorState('Open this post in Chrome, use the mini player, then copy and paste its comments below.');log('warning','No automatic collector connected; use the mini player on Facebook.');return}
     collectorActive=true;pendingLoads++;render();collectorState('Opening the post in Chrome and collecting comments. You can listen as they arrive.');
     log('info',`Chrome collector requested for ${activeUrl}`);
     window.postMessage({source:'fbcr-page',type:'start',url:activeUrl},location.origin);
@@ -52,7 +52,7 @@
     }
   });
   window.postMessage({source:'fbcr-page',type:'ping'},location.origin);
-  setTimeout(()=>{if(!collectorReady)collectorState('Chrome collector is not connected on this device. Saved comments still work.')},1200);
+  setTimeout(()=>{if(!collectorReady)collectorState('For new posts, use the Chrome mini player and paste its copied comments below.')},1200);
   q('#cr-copy-report').addEventListener('click',async()=>{
     const report=[
       'Facebook Comment Reader diagnostic',
@@ -241,8 +241,8 @@
     q('#cr-sub').textContent=savedPosts[next]?.title||'Selected Facebook post';
     log('info',`Selected post: ${next}`);
     if(savedPosts[next]){const saved=savedPosts[next];pendingLoads=saved.path?1:0;savedLoaded=saved.initial.length;add(saved.initial);restore();if(saved.path)loadSaved();status(`${comments.length} comments ready.${pendingLoads?' Buffering the saved set.':''}`);log('success',`${comments.length} saved comments ready for this post.`)}
-    else{restore();render();status(comments.length?`${comments.length} saved comments ready for this post.`:collect&&collectorReady?'Opening Facebook to collect comments.':'Post selected. Use the Windows Chrome collector or paste comments below.');log(collect&&collectorReady?'info':'warning',collect&&collectorReady?`Starting live collection with ${comments.length} saved comments.`:comments.length?`Loaded ${comments.length} comments previously saved for this post.`:'This post has no saved comments in the reader.')}
-    if(collect){if(collectorReady)startCollector();else{collectorState('Chrome collector is not connected. Existing saved comments can still play.');log('warning','Install the Chrome collector on this PC to read new Facebook links automatically.')}}
+    else{restore();render();status(comments.length?`${comments.length} saved comments ready for this post.`:collect&&collectorReady?'Opening Facebook to collect comments.':'Post selected. Use the Chrome mini player on Facebook, then paste comments below.');log(collect&&collectorReady?'info':'warning',collect&&collectorReady?`Starting live collection with ${comments.length} saved comments.`:comments.length?`Loaded ${comments.length} comments previously saved for this post.`:'This post has no saved comments in the reader.')}
+    if(collect){if(collectorReady)startCollector();else{collectorState('Open the post in Chrome, collect with the mini player, then copy comments here.');log('warning','Automatic collection is unavailable; use the mini player on Facebook.')}}
   }
   q('#cr-form').addEventListener('submit',event=>{event.preventDefault();usePost(q('#cr-post-url').value,true)});
   root.addEventListener('dragover',event=>{if(!event.target.closest('textarea'))event.preventDefault()});

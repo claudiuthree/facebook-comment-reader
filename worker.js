@@ -35,6 +35,8 @@ export default {
       return data ? new Response(data, {headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff'}}) : json({error: 'Queue not found or expired'}, 404);
     }
     if (url.pathname.startsWith('/api/')) return json({error: 'Not found'}, 404);
+    if (['/chrome-collector.zip', '/chrome-collector-mini.zip'].includes(url.pathname))
+      return new Response('This extension package is no longer available.', {status: 410, headers: {'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store'}});
     return env.ASSETS.fetch(request);
   }
 };

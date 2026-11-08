@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Facebook Comment Reader Collector",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Collect and listen to visible Facebook comments on the post, or send them to the reader tab.",
-  "permissions": ["tabs"],
+  "permissions": ["tabs", "clipboardWrite"],
   "action": { "default_title": "Comment reader", "default_popup": "popup.html" },
   "host_permissions": [
     "https://www.facebook.com/*",
