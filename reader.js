@@ -6,7 +6,7 @@
   const seen=new Set();
   const list=q('#cr-list');
   const knownPost='https://facebook.com/61591138393698/posts/122127670083371279';
-  const knownTotal=__KNOWN_TOTAL__;
+  const savedPosts=__SAVED_POSTS__;
   let activeUrl=knownPost,version=0,savedLoaded=0,importProgress=null;
   const storageKey=()=>`facebook-comment-reader-imports-v2:${activeUrl}`;
   let index=0,playing=false,waiting=false,token=0,pendingLoads=__PENDING_LOADS__;
@@ -31,12 +31,12 @@
       'Recent activity:',
       ...Array.from(q('#cr-log').children).slice(0,15).map(entry=>entry.textContent)
     ].join('\n');
+    const field=q('#cr-report');field.hidden=false;field.value=report;field.focus();field.select();
     try{
       await navigator.clipboard.writeText(report);
-      status('Diagnostic report copied. Paste it into the chat for help.');
-      log('info','Diagnostic report copied to clipboard.');
+      status('Diagnostic report is shown below. Copy it into the chat for help.');
+      log('info','Diagnostic report prepared and clipboard copy attempted.');
     }catch{
-      const field=q('#cr-report');field.hidden=false;field.value=report;field.focus();field.select();
       status('Select and copy the diagnostic report shown below the activity log.');
       log('warning','Clipboard permission was unavailable; report shown for manual copying.');
     }
@@ -46,7 +46,7 @@
   function progress(){
     let done,total,message;
     if(importProgress){done=importProgress.done;total=importProgress.total;message=`Processing copied comments: ${done} of ${total}`}
-    else if(activeUrl===knownPost&&pendingLoads&&savedLoaded<knownTotal){done=savedLoaded;total=knownTotal;message=`${done} of ${total} saved comments loaded. You can start listening now.`}
+    else if(savedPosts[activeUrl]&&pendingLoads&&savedLoaded<savedPosts[activeUrl].total){done=savedLoaded;total=savedPosts[activeUrl].total;message=`${done} of ${total} saved comments loaded. You can start listening now.`}
     else if(comments.length){done=comments.length;total=comments.length;message=`${done} comments ready for this post.`}
     else{done=0;total=1;message='No comments loaded from this link. Copy and paste them below.'}
     const bar=q('#cr-progress');bar.max=total;bar.value=done;
@@ -179,9 +179,9 @@
     stop();version++;activeUrl=next;comments.length=0;seen.clear();list.replaceChildren();index=0;pendingLoads=0;savedLoaded=0;importProgress=null;
     try{localStorage.setItem('facebook-comment-reader-active-post',next)}catch{}
     q('#cr-openpost').href=next;q('#cr-post-url').value=next;
-    q('#cr-sub').textContent=next===knownPost?'Paintwitheroy · “What’s one thing that drives you crazy as a painter?”':'Selected Facebook post';
+    q('#cr-sub').textContent=savedPosts[next]?.title||'Selected Facebook post';
     log('info',`Selected post: ${next}`);
-    if(next===knownPost){pendingLoads=__PENDING_LOADS__;savedLoaded=initial.length;add(initial);restore();loadSaved();status(`${comments.length} comments ready. Buffering the saved set.`)}
+    if(savedPosts[next]){const saved=savedPosts[next];pendingLoads=saved.path?1:0;savedLoaded=saved.initial.length;add(saved.initial);restore();if(saved.path)loadSaved();status(`${comments.length} comments ready.${pendingLoads?' Buffering the saved set.':''}`);log('success',`${comments.length} saved comments ready for this post.`)}
     else{restore();render();status(comments.length?`${comments.length} saved comments ready for this post.`:'Post selected. Open it, copy its comments, then paste them below. Facebook does not provide these comments to the reader from the link alone.');log('warning',comments.length?`Loaded ${comments.length} comments previously pasted for this post. No live Facebook fetch was attempted.`:'No live Facebook fetch was attempted. This post has no saved comments in the reader; paste its comments to add them.')}
   }
   q('#cr-form').addEventListener('submit',event=>{event.preventDefault();usePost(q('#cr-post-url').value)});

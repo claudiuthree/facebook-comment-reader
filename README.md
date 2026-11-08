@@ -2,7 +2,7 @@
 
 A mobile-friendly continuous text-to-speech reader for the public [Paintwitheroy post](https://www.facebook.com/61591138393698/posts/122127670083371279/).
 
-Paste or drop any Facebook post URL into the link field. Each post gets its own comment queue and its own browser-stored imported comments. The example post below is the only one with a bundled comment snapshot. A URL alone cannot provide comments for other posts because the public Facebook page response does not expose them; open the post and paste its comments into the reader. The app does not claim automatic retrieval for those links.
+Paste or drop any Facebook post URL into the link field. Each post gets its own comment queue and its own browser-stored imported comments. Two Paintwitheroy posts have bundled comment snapshots, including the [painter advice post](https://www.facebook.com/paintwithroy/posts/pfbid0od9Npj8uWk2zFGYUK1FqQKVE8AvNg4fYbFGJ2DVonBmEeqa22NBnRwDKpbxdW1T5l). A URL alone cannot provide comments for other posts because the public Facebook page response does not expose them; open the post and paste its comments into the reader. The app does not claim automatic retrieval for those links.
 
 The app captured 735 distinct Facebook entries on 8 November 2026. It plays 667 unique text comments and replies after removing 68 repeated texts (ignoring case, spacing, and punctuation). The original capture is in `data/comments-raw.json`. Facebook showed 983 in its comment counter, but the remaining entries were not verified or included. Emojis are omitted from displayed and spoken text. New comments are not fetched automatically.
 
@@ -16,6 +16,8 @@ The Copy diagnostic report button copies the selected post URL, ready count, pro
 
 Audio uses the browser Speech Synthesis API. Keep the page open while listening.
 Commenter names are not displayed or spoken.
+
+The painter advice snapshot was captured from visible Facebook comments on 8 November 2026. Facebook displayed 189 comments, including replies; the saved snapshot is a partial set of visible top-level text comments, with repeated text removed. The reel URL `https://www.facebook.com/reel/1765689758066750` is a separate post with its own comments.
 
 Deploy with `npm install` and `npm run deploy`.
 

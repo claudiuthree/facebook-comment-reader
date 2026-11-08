@@ -8,6 +8,16 @@ from pathlib import Path
 page = Path('public/index.html')
 inline_path = os.environ.get('INLINE_READER_PATH')
 data = json.loads(Path('public/comments.json').read_text(encoding='utf-8-sig'))
+second_raw = json.loads(Path('data/paintwithroy-comments.json').read_text(encoding='utf-8-sig'))
+second = []
+second_seen = set()
+for item in second_raw:
+    body = re.sub(r'\s+', ' ', item['text'].replace('\ufffc', '')).strip()
+    key = ''.join(char for char in body.casefold() if char.isalnum())
+    if key and key not in second_seen:
+        second_seen.add(key)
+        second.append({'name': 'Comment', 'text': body})
+Path('public/paintwithroy-comments.json').write_text(json.dumps(second, ensure_ascii=False), encoding='utf-8')
 script = Path('reader.js').read_text(encoding='utf-8')
 
 
@@ -16,18 +26,22 @@ def js_data(items):
 
 
 def make_script(items, remote):
+    saved_posts = {
+        'https://facebook.com/61591138393698/posts/122127670083371279': {'title': 'Paintwitheroy · “What’s one thing that drives you crazy as a painter?”', 'total': len(data), 'initial': [[item['name'], item['text']] for item in (data[:30] if remote else data)], 'path': './comments.json' if remote else None},
+        'https://facebook.com/paintwithroy/posts/pfbid0od9Npj8uWk2zFGYUK1FqQKVE8AvNg4fYbFGJ2DVonBmEeqa22NBnRwDKpbxdW1T5l': {'title': 'Paintwithroy · painter advice post', 'total': len(second), 'initial': [[item['name'], item['text']] for item in (second[:30] if remote else second)], 'path': './paintwithroy-comments.json' if remote else None},
+    }
     remote_load = '''const requestVersion=version;
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),8000);
-    log('info','Loading the remaining saved comments for the example post.');
-    fetch('./comments.json',{signal:controller.signal})
+    log('info','Loading the remaining saved comments for this post.');
+    fetch(savedPosts[activeUrl].path,{signal:controller.signal})
       .then(response=>{if(!response.ok)throw new Error('Fetch failed');return response.json()})
-      .then(items=>{if(requestVersion!==version)return;const added=add(items);savedLoaded=knownTotal;finishLoad();status(`${comments.length} comments ready. ${added} loaded in the background.`);log('success',`Saved comment load finished: ${comments.length} unique comments ready.`)})
+      .then(items=>{if(requestVersion!==version)return;const added=add(items);savedLoaded=savedPosts[activeUrl].total;finishLoad();status(`${comments.length} comments ready. ${added} loaded in the background.`);log('success',`Saved comment load finished: ${comments.length} unique comments ready.`)})
       .catch(error=>{if(requestVersion!==version)return;finishLoad();status('Saved comments are ready. More comments could not be loaded. See the activity log.');log('error',`Saved comment request failed: ${error.name==='AbortError'?'timed out after 8 seconds':error.message}`)})
       .finally(()=>clearTimeout(timer));''' if remote else ''
     return (script.replace('__INITIAL_COMMENTS__', js_data(items))
+                  .replace('__SAVED_POSTS__', json.dumps(saved_posts, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c'))
                   .replace('__PENDING_LOADS__', '1' if remote else '0')
-                  .replace('__KNOWN_TOTAL__', str(len(data)))
                   .replace('__REMOTE_LOAD__', remote_load))
 
 
@@ -94,4 +108,4 @@ fragment = fragment.replace(f'max="{len(data)}" value="30"', f'max="{len(data)}"
 fragment = fragment.replace(f'30 of {len(data)} saved comments loaded. You can start listening now.', f'{len(data)} comments ready for this post.')
 if inline_path:
     Path(inline_path).write_text(fragment + '\n', encoding='utf-8')
-print(f'Built phone page (30 immediate + {len(data)-30} background) and in-chat reader ({len(data)} immediate)')
+print(f'Built phone and in-chat readers with {len(data)} and {len(second)} deduplicated comments')
