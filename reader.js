@@ -11,6 +11,7 @@
   const storageKey=()=>`facebook-comment-reader-imports-v2:${activeUrl}`;
   let index=0,playing=false,waiting=false,token=0,pendingLoads=__PENDING_LOADS__;
   const initial=__INITIAL_COMMENTS__;
+  let collectorReady=false,collectorActive=false,collectorTimer=null;
 
   const clean=text=>String(text||'').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}]/gu,'').replace(/[\uFE0F\u200D]/g,'').trim();
   const identity=text=>Array.from(text.normalize('NFKC').toLowerCase()).filter(char=>/[\p{L}\p{N}]/u.test(char)).join('');
@@ -22,6 +23,36 @@
     const logList=q('#cr-log');logList.prepend(entry);
     while(logList.children.length>50)logList.lastElementChild.remove();
   }
+  function collectorState(message){const field=q('#cr-collector-state');if(field)field.textContent=message;}
+  function startCollector(){
+    if(!collectorReady){collectorState('Chrome collector is not connected. Install it on the PC to collect a new post automatically.');log('warning','Chrome collector is not connected; no Facebook tab was opened.');return}
+    collectorActive=true;pendingLoads++;render();collectorState('Opening the post in Chrome and collecting comments. You can listen as they arrive.');
+    log('info',`Chrome collector requested for ${activeUrl}`);
+    window.postMessage({source:'fbcr-page',type:'start',url:activeUrl},location.origin);
+    clearTimeout(collectorTimer);
+    const requestVersion=version;
+    collectorTimer=setTimeout(()=>{if(collectorActive&&requestVersion===version){collectorActive=false;finishLoad();collectorState('Collector timed out. See the activity log.');log('error','Chrome collector did not finish within 90 seconds.')}},90000);
+  }
+  window.addEventListener('message',event=>{
+    if(event.source!==window||event.origin!==location.origin||event.data?.source!=='fbcr-extension')return;
+    const message=event.data;
+    if(message.type==='ready'){collectorReady=true;collectorState('Chrome collector connected. Paste a post link and tap Use this post.');return}
+    if(message.url!==activeUrl)return;
+    if(message.type==='batch'){
+      const added=add(Array.isArray(message.items)?message.items:[]);
+      if(added){saveImport(message.items);collectorState(`${comments.length} comments ready. Collecting more in the Facebook tab.`);status(`${comments.length} comments ready. Tap Read continuously.`);log('success',`Collected ${added} new comments from Facebook.`)}
+    }else if(message.type==='done'){
+      clearTimeout(collectorTimer);collectorActive=false;finishLoad();
+      collectorState(`Collection finished. ${comments.length} unique comments ready.`);
+      log('success',`Facebook tab closed. ${comments.length} unique comments ready.`);
+    }else if(message.type==='error'){
+      clearTimeout(collectorTimer);collectorActive=false;finishLoad();
+      collectorState('Collector stopped. See the activity log.');
+      log('error',String(message.error||'Collector failed.'));
+    }
+  });
+  window.postMessage({source:'fbcr-page',type:'ping'},location.origin);
+  setTimeout(()=>{if(!collectorReady)collectorState('Chrome collector is not connected on this device. Saved comments still work.')},1200);
   q('#cr-copy-report').addEventListener('click',async()=>{
     const report=[
       'Facebook Comment Reader diagnostic',
@@ -144,6 +175,34 @@
       localStorage.setItem(storageKey(),JSON.stringify(saved));
     }catch(error){log('warning',`Could not save imported comments on this device: ${error.message}`)}
   }
+  q('#cr-share').addEventListener('click',async()=>{
+    if(!comments.length){status('Collect or paste comments before sending the queue to your phone.');return}
+    const button=q('#cr-share');button.disabled=true;
+    status(`Preparing ${comments.length} comments for your phone.`);
+    try{
+      const response=await fetch('/api/share',{method:'POST',headers:{'content-type':'application/json','x-reader-share':'1'},body:JSON.stringify({post:activeUrl,comments:comments.map(item=>item[1])})});
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.error||`Upload failed: ${response.status}`);
+      const link=new URL(location.origin+'/');link.searchParams.set('share',result.code);
+      const field=q('#cr-phone-link');field.hidden=false;field.href=link.href;field.textContent=link.href;
+      status('Phone link ready. Open it on your phone to listen to this queue. It expires in 24 hours.');
+      log('success',`Created phone link for ${comments.length} comments.`);
+    }catch(error){status('Could not prepare the phone link. See the activity log.');log('error',`Phone link failed: ${error.message}`)}
+    finally{button.disabled=false}
+  });
+  async function loadShared(code){
+    if(!/^[a-f0-9]{32}$/.test(code)){log('error','Invalid phone link.');return}
+    try{
+      const response=await fetch(`/api/share/${code}`,{cache:'no-store'});
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||`Request failed: ${response.status}`);
+      usePost(data.post,false);
+      const items=data.comments.map(text=>({text}));
+      const added=add(items);saveImport(items);
+      status(`${comments.length} comments ready from the phone link. Tap Read continuously.`);
+      log('success',`Phone link loaded ${added} new comments; repeated text skipped.`);
+    }catch(error){status('Phone link could not be loaded. See the activity log.');log('error',`Phone link failed: ${error.message}`)}
+  }
   q('#cr-add').addEventListener('click',()=>{
     const raw=q('#cr-paste').value;const items=parse(raw);
     if(!items.length){status('Paste comments first, one per line or as a JSON array.');log('warning','No copied comments were entered.');return}
@@ -172,26 +231,27 @@
   }
   function restore(){try{add(JSON.parse(localStorage.getItem(storageKey())||'[]'))}catch{}}
   function loadSaved(){__REMOTE_LOAD__}
-  function usePost(raw){
+  function usePost(raw,collect=false){
     const next=canonical(raw);
     if(!next){status('Enter a Facebook post link.');log('error','The link was rejected. Enter an HTTPS Facebook post URL.');return}
-    if(next===activeUrl){status(`${comments.length} comments ready for this post.`);log('info',`This post is already selected. ${comments.length} comments are ready.`);return}
-    stop();version++;activeUrl=next;comments.length=0;seen.clear();list.replaceChildren();index=0;pendingLoads=0;savedLoaded=0;importProgress=null;
+    if(next===activeUrl){status(`${comments.length} comments ready for this post.`);log('info',`This post is already selected. ${comments.length} comments are ready.`);if(collect)startCollector();return}
+    stop();version++;clearTimeout(collectorTimer);collectorActive=false;activeUrl=next;comments.length=0;seen.clear();list.replaceChildren();index=0;pendingLoads=0;savedLoaded=0;importProgress=null;
     try{localStorage.setItem('facebook-comment-reader-active-post',next)}catch{}
     q('#cr-openpost').href=next;q('#cr-post-url').value=next;
     q('#cr-sub').textContent=savedPosts[next]?.title||'Selected Facebook post';
     log('info',`Selected post: ${next}`);
     if(savedPosts[next]){const saved=savedPosts[next];pendingLoads=saved.path?1:0;savedLoaded=saved.initial.length;add(saved.initial);restore();if(saved.path)loadSaved();status(`${comments.length} comments ready.${pendingLoads?' Buffering the saved set.':''}`);log('success',`${comments.length} saved comments ready for this post.`)}
     else{restore();render();status(comments.length?`${comments.length} saved comments ready for this post.`:'Post selected. Open it, copy its comments, then paste them below. Facebook does not provide these comments to the reader from the link alone.');log('warning',comments.length?`Loaded ${comments.length} comments previously pasted for this post. No live Facebook fetch was attempted.`:'No live Facebook fetch was attempted. This post has no saved comments in the reader; paste its comments to add them.')}
+    if(collect){if(collectorReady)startCollector();else{collectorState('Chrome collector is not connected. Existing saved comments can still play.');log('warning','Install the Chrome collector on this PC to read new Facebook links automatically.')}}
   }
-  q('#cr-form').addEventListener('submit',event=>{event.preventDefault();usePost(q('#cr-post-url').value)});
+  q('#cr-form').addEventListener('submit',event=>{event.preventDefault();usePost(q('#cr-post-url').value,true)});
   root.addEventListener('dragover',event=>{if(!event.target.closest('textarea'))event.preventDefault()});
-  root.addEventListener('drop',event=>{if(event.target.closest('textarea'))return;const raw=event.dataTransfer.getData('text/uri-list')||event.dataTransfer.getData('text/plain');if(canonical(raw)){event.preventDefault();usePost(raw)}});
+  root.addEventListener('drop',event=>{if(event.target.closest('textarea'))return;const raw=event.dataTransfer.getData('text/uri-list')||event.dataTransfer.getData('text/plain');if(canonical(raw)){event.preventDefault();usePost(raw,true)}});
 
   savedLoaded=initial.length;add(initial);
   log('info',`${comments.length} bundled comments ready for the example post.`);
   restore();
   status(`${comments.length} comments ready. Tap Read continuously to start.`);
   loadSaved();
-  try{const saved=new URLSearchParams(location.search).get('post')||localStorage.getItem('facebook-comment-reader-active-post');if(saved)usePost(saved)}catch{}
+  try{const params=new URLSearchParams(location.search);const saved=params.get('post')||localStorage.getItem('facebook-comment-reader-active-post');if(saved)usePost(saved);if(params.get('share'))loadShared(params.get('share'))}catch{}
 })();

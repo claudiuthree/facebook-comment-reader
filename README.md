@@ -2,20 +2,22 @@
 
 A mobile-friendly continuous text-to-speech reader for the public [Paintwitheroy post](https://www.facebook.com/61591138393698/posts/122127670083371279/).
 
-Paste or drop any Facebook post URL into the link field. Each post gets its own comment queue and its own browser-stored imported comments. Three Paintwitheroy posts have bundled comment snapshots, including the [painter advice post](https://www.facebook.com/paintwithroy/posts/pfbid0od9Npj8uWk2zFGYUK1FqQKVE8AvNg4fYbFGJ2DVonBmEeqa22NBnRwDKpbxdW1T5l) and the [gloves post](https://www.facebook.com/paintwithroy/posts/pfbid08vzD1LjCHTvwQZE3mHvBKU6mCY8MCWSgh5ANFMMFPN7vZVg6fxq7BoYpVxs2pe7Dl). A URL alone cannot provide comments for other posts because the public Facebook page response does not expose them; open the post and paste its comments into the reader. The app does not claim automatic retrieval for those links.
+Paste or drop any Facebook post URL into the link field. Each post gets its own comment queue and its own browser-stored imported comments. Three Paintwitheroy posts have bundled comment snapshots, including the [painter advice post](https://www.facebook.com/paintwithroy/posts/pfbid0od9Npj8uWk2zFGYUK1FqQKVE8AvNg4fYbFGJ2DVonBmEeqa22NBnRwDKpbxdW1T5l) and the [gloves post](https://www.facebook.com/paintwithroy/posts/pfbid08vzD1LjCHTvwQZE3mHvBKU6mCY8MCWSgh5ANFMMFPN7vZVg6fxq7BoYpVxs2pe7Dl). For new posts, the Windows Chrome collector in `extension/` can open the post in the existing signed-in browser, send visible comment text to the reader in batches, and close the Facebook tab. Setup instructions are at `/collector-setup.html`. The collector depends on Facebook's page layout and may not capture every comment or reply.
 
 The app captured 735 distinct Facebook entries on 8 November 2026. It plays 667 unique text comments and replies after removing 68 repeated texts (ignoring case, spacing, and punctuation). The original capture is in `data/comments-raw.json`. Facebook showed 983 in its comment counter, but the remaining entries were not verified or included. Emojis are omitted from displayed and spoken text. New comments are not fetched automatically.
 
 The phone page includes its first 30 comments in the HTML, so playback can begin as soon as the page opens. It buffers the other 637 saved comments in the background and continues playback as they arrive. Paste additional comments, one per line or as a JSON array, to add them to the listening queue without stopping playback. Duplicates are skipped. Pasted comments are saved in this browser's local storage and restored after a refresh.
 
-A progress bar beside the link field shows how many saved comments are ready and the progress of a pasted batch. For other Facebook links, it immediately shows that no comments are available from the link alone.
+A progress bar beside the link field shows how many saved comments are ready and the progress of a pasted batch. Without the collector, new links immediately show that no comments are available from the link alone.
 
-The Activity log at the bottom records link selection, saved snapshot loading, pasted comment imports, timeouts, and errors. For a new post, it explicitly says that no live Facebook fetch was attempted.
+The Activity log at the bottom records link selection, saved snapshot loading, Chrome collection, pasted comment imports, timeouts, and errors. It says when the collector is not connected.
 
 The Copy diagnostic report button copies the selected post URL, ready count, progress, and recent activity. A user can paste that report into the Codex chat for link-specific troubleshooting; the site does not send the report automatically.
 
 Audio uses the browser Speech Synthesis API. Keep the page open while listening.
 Commenter names are not displayed or spoken.
+
+The **Send this queue to my phone** button stores a text-only queue in Cloudflare KV for 24 hours and gives an unguessable link. Anyone with that link can listen to its comments until it expires. The share endpoint limits posts to Facebook URLs and queues to 1,000 comments and 200 KB. The collector itself only sends text from Facebook to the reader tab; the phone share happens when the user presses its button.
 
 The painter advice snapshot was captured from visible Facebook comments on 8 November 2026. Facebook displayed 189 comments, including replies; the saved snapshot is a partial set of visible top-level text comments, with repeated text removed. The reel URL `https://www.facebook.com/reel/1765689758066750` is a separate post with its own comments.
 

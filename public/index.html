@@ -50,10 +50,13 @@
   <div class="top"><div><h2>Facebook comment reader</h2><p class="sub" id="cr-sub">Paintwitheroy · “What’s one thing that drives you crazy as a painter?”</p></div><a id="cr-openpost" href="https://www.facebook.com/61591138393698/posts/122127670083371279/" target="_blank" rel="noopener">Open post</a></div>
   <form id="cr-form" class="postform"><label for="cr-post-url">Facebook post link</label><div><input id="cr-post-url" type="url" value="https://www.facebook.com/61591138393698/posts/122127670083371279/" placeholder="Paste or drop a Facebook post link" required><button type="submit">Use this post</button></div></form>
   <div class="load-progress"><progress id="cr-progress" max="667" value="30" aria-label="Comments loaded"></progress><p id="cr-progress-text" role="status">30 of 667 saved comments loaded. You can start listening now.</p></div>
+  <p class="sub" id="cr-collector-state" role="status">Checking for the Chrome collector on this PC.</p>
+  <p class="sub"><a href="./collector-setup.html" target="_blank" rel="noopener">Set up automatic collection in Windows Chrome</a></p>
   <div class="now" aria-live="polite"><p class="eyebrow" id="cr-count">Loading comments</p><p class="body" id="cr-body"></p></div>
   <div class="controls"><button type="button" id="cr-prev" aria-label="Previous comment">Previous</button><button type="button" class="primary" id="cr-play" disabled>Read continuously</button><button type="button" id="cr-next" aria-label="Next comment">Next</button><button type="button" id="cr-stop">Stop</button><label for="cr-rate">Speed <select id="cr-rate"><option value="0.8">0.8×</option><option value="1" selected>1×</option><option value="1.2">1.2×</option><option value="1.5">1.5×</option></select></label></div>
   <p id="cr-status" class="status" role="status">Tap Read continuously to hear all loaded comments from the selected one.</p>
   <div class="import"><label for="cr-paste">Add copied comments</label><textarea id="cr-paste" placeholder="One comment per line, or paste a JSON array"></textarea><button type="button" id="cr-add">Add to listening queue</button></div>
+  <div class="share"><button type="button" id="cr-share">Send this queue to my phone</button><p><a id="cr-phone-link" hidden></a></p></div>
   <div class="listhead"><strong>Comments loaded from this post</strong><span class="sub">30 comments ready · buffering more</span></div>
   <div id="cr-list" class="list" aria-label="Select a comment"></div>
   <details class="activity" open><summary>Activity log</summary><ul id="cr-log" role="log" aria-label="Reader activity"></ul><button type="button" id="cr-copy-report">Copy diagnostic report</button><textarea id="cr-report" aria-label="Diagnostic report" readonly hidden></textarea></details>
@@ -71,6 +74,7 @@
   const storageKey=()=>`facebook-comment-reader-imports-v2:${activeUrl}`;
   let index=0,playing=false,waiting=false,token=0,pendingLoads=1;
   const initial=[["Karen Anderson","Not having rags and water"],["Jim Adamski","When homeowners break out flood light for final inspection"],["Tony Hallum","Jim Adamski punch list here we come !"],["Greg Edge","Jim Adamski during the day too smfh"],["Paul Lillyman","Jim Adamski yeah, that pissed me off too. Bloody condition wasn't lit up to that degree."],["Deborah Gross","Jim Adamski. That is crazy. I knew homeowners that would do that and one building contractor we painted for."],["Michael Didak","Jim Adamski funny but true"],["Mikey Evans","Jim Adamski had a painting company in New Zealand for 30 years we always light checked our work for imperfections customers can be so picky but never had many come backs"],["Donald Raney","Mikey Evans I can go behind anyone after they have touched up with a light and find something. But i don't because I know,it can't be perfect."],["Randy Kyle","Jim Adamski I had to revisit the backside of a toilet like 5 times forva lady once. I don't know how she could see backthere. Lol"],["Bill Davis","Jim Adamski if u do ur job properly and u have nothing to worry about"],["Lars Nelson","Jim Adamski veins be popping when that happens Homie don't play that though."],["Jamie Benko","Jim Adamski wouldn't bother you if job was done correctly. Be nothing to put painters tape on lol"],["Robert A Entel","Jim Adamski we always called that the truth finder ,after you flash them with the halogen they just see stars"],["Jenny Liske","Jim Adamski oh... and 5000 pieces of tape after the PRIME coat!!! Ugh... just don't look at stuff till AFTER I put the final coat of paint on.. OK???"],["Kevin Whitaker","Jim Adamski we had one last breakout the cop flashlight q"],["Laura Richard","Other people caulking for me"],["Don E Reaves","Popcorn celling especially when you have to repaint it and have to scrap the damn thing"],["Greg Murray","Laura Richard 200%"],["Laura Richard","Greg Murray especially when it’s the first coat of paint GIPHY"],["Neal Jocher","Laura Richard Big one right there. On a jobsite once. 4 of the paint crew in the room. Carpenter says,”I can caulk it if you want?” 4 of us at once,”NO!”"],["Matt O'Daniel","Neal Jocher never seen trim Carpenter who could finish caulk. Hollar at me if lm on job site. I'll do it"],["Oriano Guadagno","Laura Richard and filling, anything basically"],["Chris Saunders","Laura Richard I agree. One time I went to a new construction and contractor told me everything is caulked ready to go. Calk was thick, some of it wasn't even pressed in and all over hinges and walls. Top it all off the trim was even sanded. Nightmare for me and the contractor. His bill had a lot of extras added on."],["Bobbi Brandt","Laura Richard i wish there were a double like button for this"],["Laura Richard","Bobbi Brandt those of us who know how to caulk won’t let anyone else do it lol"],["Neal Jocher","Laura Richard It’s a damn art in itself. I don’t know why they call it painting sometimes. If you can’t prep you can do a lot of damage to a new build with caulk. I was on a site and this new kid caulked the new Anderson windows shut because nobody was watching him and apparently he was not vetted properly. Sealed those windows right up. Lol"],["Alan Frank","Laura Richard right, gaping or caulking as you call it is a art. I hate when people leave product over the areas it's not supposed to be, paint shows everything"],["Noel Burnett","The client looking at 1st wall and saying \"thats not the same color as the wall youre working on\" Bruhhhh This wall is WET!"],["Michael Gavin","Noel Burnett get it all the time that wall looks a different colour let it dry then they are like holding payment until it dries and then says payment sent thank you very much can’t win mate can you"]];
+  let collectorReady=false,collectorActive=false,collectorTimer=null;
 
   const clean=text=>String(text||'').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}]/gu,'').replace(/[\uFE0F\u200D]/g,'').trim();
   const identity=text=>Array.from(text.normalize('NFKC').toLowerCase()).filter(char=>/[\p{L}\p{N}]/u.test(char)).join('');
@@ -82,6 +86,36 @@
     const logList=q('#cr-log');logList.prepend(entry);
     while(logList.children.length>50)logList.lastElementChild.remove();
   }
+  function collectorState(message){const field=q('#cr-collector-state');if(field)field.textContent=message;}
+  function startCollector(){
+    if(!collectorReady){collectorState('Chrome collector is not connected. Install it on the PC to collect a new post automatically.');log('warning','Chrome collector is not connected; no Facebook tab was opened.');return}
+    collectorActive=true;pendingLoads++;render();collectorState('Opening the post in Chrome and collecting comments. You can listen as they arrive.');
+    log('info',`Chrome collector requested for ${activeUrl}`);
+    window.postMessage({source:'fbcr-page',type:'start',url:activeUrl},location.origin);
+    clearTimeout(collectorTimer);
+    const requestVersion=version;
+    collectorTimer=setTimeout(()=>{if(collectorActive&&requestVersion===version){collectorActive=false;finishLoad();collectorState('Collector timed out. See the activity log.');log('error','Chrome collector did not finish within 90 seconds.')}},90000);
+  }
+  window.addEventListener('message',event=>{
+    if(event.source!==window||event.origin!==location.origin||event.data?.source!=='fbcr-extension')return;
+    const message=event.data;
+    if(message.type==='ready'){collectorReady=true;collectorState('Chrome collector connected. Paste a post link and tap Use this post.');return}
+    if(message.url!==activeUrl)return;
+    if(message.type==='batch'){
+      const added=add(Array.isArray(message.items)?message.items:[]);
+      if(added){saveImport(message.items);collectorState(`${comments.length} comments ready. Collecting more in the Facebook tab.`);status(`${comments.length} comments ready. Tap Read continuously.`);log('success',`Collected ${added} new comments from Facebook.`)}
+    }else if(message.type==='done'){
+      clearTimeout(collectorTimer);collectorActive=false;finishLoad();
+      collectorState(`Collection finished. ${comments.length} unique comments ready.`);
+      log('success',`Facebook tab closed. ${comments.length} unique comments ready.`);
+    }else if(message.type==='error'){
+      clearTimeout(collectorTimer);collectorActive=false;finishLoad();
+      collectorState('Collector stopped. See the activity log.');
+      log('error',String(message.error||'Collector failed.'));
+    }
+  });
+  window.postMessage({source:'fbcr-page',type:'ping'},location.origin);
+  setTimeout(()=>{if(!collectorReady)collectorState('Chrome collector is not connected on this device. Saved comments still work.')},1200);
   q('#cr-copy-report').addEventListener('click',async()=>{
     const report=[
       'Facebook Comment Reader diagnostic',
@@ -204,6 +238,34 @@
       localStorage.setItem(storageKey(),JSON.stringify(saved));
     }catch(error){log('warning',`Could not save imported comments on this device: ${error.message}`)}
   }
+  q('#cr-share').addEventListener('click',async()=>{
+    if(!comments.length){status('Collect or paste comments before sending the queue to your phone.');return}
+    const button=q('#cr-share');button.disabled=true;
+    status(`Preparing ${comments.length} comments for your phone.`);
+    try{
+      const response=await fetch('/api/share',{method:'POST',headers:{'content-type':'application/json','x-reader-share':'1'},body:JSON.stringify({post:activeUrl,comments:comments.map(item=>item[1])})});
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.error||`Upload failed: ${response.status}`);
+      const link=new URL(location.origin+'/');link.searchParams.set('share',result.code);
+      const field=q('#cr-phone-link');field.hidden=false;field.href=link.href;field.textContent=link.href;
+      status('Phone link ready. Open it on your phone to listen to this queue. It expires in 24 hours.');
+      log('success',`Created phone link for ${comments.length} comments.`);
+    }catch(error){status('Could not prepare the phone link. See the activity log.');log('error',`Phone link failed: ${error.message}`)}
+    finally{button.disabled=false}
+  });
+  async function loadShared(code){
+    if(!/^[a-f0-9]{32}$/.test(code)){log('error','Invalid phone link.');return}
+    try{
+      const response=await fetch(`/api/share/${code}`,{cache:'no-store'});
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||`Request failed: ${response.status}`);
+      usePost(data.post,false);
+      const items=data.comments.map(text=>({text}));
+      const added=add(items);saveImport(items);
+      status(`${comments.length} comments ready from the phone link. Tap Read continuously.`);
+      log('success',`Phone link loaded ${added} new comments; repeated text skipped.`);
+    }catch(error){status('Phone link could not be loaded. See the activity log.');log('error',`Phone link failed: ${error.message}`)}
+  }
   q('#cr-add').addEventListener('click',()=>{
     const raw=q('#cr-paste').value;const items=parse(raw);
     if(!items.length){status('Paste comments first, one per line or as a JSON array.');log('warning','No copied comments were entered.');return}
@@ -240,28 +302,29 @@
       .then(items=>{if(requestVersion!==version)return;const added=add(items);savedLoaded=savedPosts[activeUrl].total;finishLoad();status(`${comments.length} comments ready. ${added} loaded in the background.`);log('success',`Saved comment load finished: ${comments.length} unique comments ready.`)})
       .catch(error=>{if(requestVersion!==version)return;finishLoad();status('Saved comments are ready. More comments could not be loaded. See the activity log.');log('error',`Saved comment request failed: ${error.name==='AbortError'?'timed out after 8 seconds':error.message}`)})
       .finally(()=>clearTimeout(timer));}
-  function usePost(raw){
+  function usePost(raw,collect=false){
     const next=canonical(raw);
     if(!next){status('Enter a Facebook post link.');log('error','The link was rejected. Enter an HTTPS Facebook post URL.');return}
-    if(next===activeUrl){status(`${comments.length} comments ready for this post.`);log('info',`This post is already selected. ${comments.length} comments are ready.`);return}
-    stop();version++;activeUrl=next;comments.length=0;seen.clear();list.replaceChildren();index=0;pendingLoads=0;savedLoaded=0;importProgress=null;
+    if(next===activeUrl){status(`${comments.length} comments ready for this post.`);log('info',`This post is already selected. ${comments.length} comments are ready.`);if(collect)startCollector();return}
+    stop();version++;clearTimeout(collectorTimer);collectorActive=false;activeUrl=next;comments.length=0;seen.clear();list.replaceChildren();index=0;pendingLoads=0;savedLoaded=0;importProgress=null;
     try{localStorage.setItem('facebook-comment-reader-active-post',next)}catch{}
     q('#cr-openpost').href=next;q('#cr-post-url').value=next;
     q('#cr-sub').textContent=savedPosts[next]?.title||'Selected Facebook post';
     log('info',`Selected post: ${next}`);
     if(savedPosts[next]){const saved=savedPosts[next];pendingLoads=saved.path?1:0;savedLoaded=saved.initial.length;add(saved.initial);restore();if(saved.path)loadSaved();status(`${comments.length} comments ready.${pendingLoads?' Buffering the saved set.':''}`);log('success',`${comments.length} saved comments ready for this post.`)}
     else{restore();render();status(comments.length?`${comments.length} saved comments ready for this post.`:'Post selected. Open it, copy its comments, then paste them below. Facebook does not provide these comments to the reader from the link alone.');log('warning',comments.length?`Loaded ${comments.length} comments previously pasted for this post. No live Facebook fetch was attempted.`:'No live Facebook fetch was attempted. This post has no saved comments in the reader; paste its comments to add them.')}
+    if(collect){if(collectorReady)startCollector();else{collectorState('Chrome collector is not connected. Existing saved comments can still play.');log('warning','Install the Chrome collector on this PC to read new Facebook links automatically.')}}
   }
-  q('#cr-form').addEventListener('submit',event=>{event.preventDefault();usePost(q('#cr-post-url').value)});
+  q('#cr-form').addEventListener('submit',event=>{event.preventDefault();usePost(q('#cr-post-url').value,true)});
   root.addEventListener('dragover',event=>{if(!event.target.closest('textarea'))event.preventDefault()});
-  root.addEventListener('drop',event=>{if(event.target.closest('textarea'))return;const raw=event.dataTransfer.getData('text/uri-list')||event.dataTransfer.getData('text/plain');if(canonical(raw)){event.preventDefault();usePost(raw)}});
+  root.addEventListener('drop',event=>{if(event.target.closest('textarea'))return;const raw=event.dataTransfer.getData('text/uri-list')||event.dataTransfer.getData('text/plain');if(canonical(raw)){event.preventDefault();usePost(raw,true)}});
 
   savedLoaded=initial.length;add(initial);
   log('info',`${comments.length} bundled comments ready for the example post.`);
   restore();
   status(`${comments.length} comments ready. Tap Read continuously to start.`);
   loadSaved();
-  try{const saved=new URLSearchParams(location.search).get('post')||localStorage.getItem('facebook-comment-reader-active-post');if(saved)usePost(saved)}catch{}
+  try{const params=new URLSearchParams(location.search);const saved=params.get('post')||localStorage.getItem('facebook-comment-reader-active-post');if(saved)usePost(saved);if(params.get('share'))loadShared(params.get('share'))}catch{}
 })();
 
   </script>

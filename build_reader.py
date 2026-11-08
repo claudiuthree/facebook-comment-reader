@@ -71,6 +71,17 @@ if 'id="cr-form"' not in html:
     html = html.replace('  <div class="now"',
         '  <form id="cr-form" class="postform"><label for="cr-post-url">Facebook post link</label><div><input id="cr-post-url" type="url" value="https://www.facebook.com/61591138393698/posts/122127670083371279/" placeholder="Paste or drop a Facebook post link" required><button type="submit">Use this post</button></div></form>\n'
         '  <div class="now"')
+if 'id="cr-collector-state"' not in html:
+    html = html.replace('  <div class="now"',
+        '  <p class="sub" id="cr-collector-state" role="status">Checking for the Chrome collector on this PC.</p>\n'
+        '  <div class="now"', 1)
+if 'id="cr-share"' not in html:
+    html = html.replace('  <div class="now"',
+        '  <p class="sub"><a href="./collector-setup.html" target="_blank" rel="noopener">Set up automatic collection in Windows Chrome</a></p>\n'
+        '  <div class="now"', 1)
+    html = html.replace('  <div class="listhead">',
+        '  <div class="share"><button type="button" id="cr-share">Send this queue to my phone</button><p><a id="cr-phone-link" hidden></a></p></div>\n'
+        '  <div class="listhead">', 1)
 if 'id="cr-progress"' not in html:
     html = html.replace('    #comment-reader .import{',
         '    #comment-reader .load-progress{margin:0 0 14px}\n'

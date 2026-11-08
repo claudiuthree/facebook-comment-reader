@@ -2,5 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "facebook-comment-reader",
   "compatibility_date": "2026-11-08",
+  "main": "./worker.js",
+  "kv_namespaces": [{ "binding": "QUEUES", "id": "7c459ecaebf34f73a1b6835231b6fed8" }],
   "assets": { "directory": "./public" }
 }
