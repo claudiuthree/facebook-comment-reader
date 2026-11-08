@@ -19,6 +19,10 @@
     #comment-reader button:disabled{opacity:.5;cursor:default}
     #comment-reader .primary{background:light-dark(#265fb9,#8ab3ff);color:light-dark(#fff,#111d31);border-color:transparent;font-weight:600}
     #comment-reader label{display:flex;gap:7px;align-items:center;font-size:.88rem}
+    #comment-reader textarea{width:100%;min-height:96px;resize:vertical;font:inherit;border-radius:10px;border:1px solid light-dark(#cad4e0,#556174);background:light-dark(#fff,#263242);color:inherit;padding:10px}
+    #comment-reader .import{margin:16px 0}
+    #comment-reader .import label{display:block;margin-bottom:6px;font-weight:600}
+    #comment-reader .import button{margin-top:8px}
     #comment-reader .status{font-size:.88rem;color:light-dark(#526072,#b7c1cf);min-height:1.3em}
     #comment-reader .listhead{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:18px 0 8px}
     #comment-reader .listhead strong{font-size:.95rem}
@@ -33,24 +37,122 @@
   <div class="now" aria-live="polite"><p class="eyebrow" id="cr-count">Loading comments</p><p class="author" id="cr-author"></p><p class="body" id="cr-body"></p></div>
   <div class="controls"><button type="button" id="cr-prev" aria-label="Previous comment">Previous</button><button type="button" class="primary" id="cr-play" disabled>Read continuously</button><button type="button" id="cr-next" aria-label="Next comment">Next</button><button type="button" id="cr-stop">Stop</button><label for="cr-rate">Speed <select id="cr-rate"><option value="0.8">0.8×</option><option value="1" selected>1×</option><option value="1.2">1.2×</option><option value="1.5">1.5×</option></select></label></div>
   <p id="cr-status" class="status" role="status">Tap Read continuously to hear all loaded comments from the selected one.</p>
-  <div class="listhead"><strong>Comments loaded from this post</strong><span class="sub">667 unique text comments and replies · 8 Nov 2026</span></div>
+  <div class="import"><label for="cr-paste">Add copied comments</label><textarea id="cr-paste" placeholder="One comment per line, or paste a JSON array"></textarea><button type="button" id="cr-add">Add to listening queue</button></div>
+  <div class="listhead"><strong>Comments loaded from this post</strong><span class="sub">30 comments ready · buffering more</span></div>
   <div id="cr-list" class="list" aria-label="Select a comment"></div>
   <script>
-    (()=>{
-      const root=document.getElementById('comment-reader');
-      let comments=[];
-      const q=s=>root.querySelector(s); let index=0,playing=false,token=0;
-      const synth=window.speechSynthesis;
-      function render(){if(!comments.length)return;const c=comments[index];q('#cr-count').textContent=`Comment ${index+1} of ${comments.length}`;q('#cr-author').textContent=c[0];q('#cr-body').textContent=c[1];q('#cr-prev').disabled=index===0;q('#cr-next').disabled=index===comments.length-1;q('#cr-play').textContent=playing?'Pause':synth&&synth.paused?'Resume':'Read continuously';q('#cr-list').querySelectorAll('button').forEach((b,i)=>b.setAttribute('aria-current',String(i===index)));}
-      function stop(){token++;if(synth)synth.cancel();playing=false;render();q('#cr-status').textContent='Stopped.'}
-      function speakCurrent(replace=true){if(!synth||!window.SpeechSynthesisUtterance){q('#cr-status').textContent='Speech playback is unavailable in this browser.';return;}if(replace)synth.cancel();const current=++token;const u=new SpeechSynthesisUtterance(`${comments[index][0]} says: ${comments[index][1]}`);u.rate=Number(q('#cr-rate').value);u.lang='en-GB';u.onend=()=>{if(current!==token)return;if(index<comments.length-1){index++;speakCurrent(false)}else{playing=false;render();q('#cr-status').textContent='Finished all loaded comments.'}};u.onerror=()=>{if(current!==token)return;playing=false;render();q('#cr-status').textContent='Audio could not play here. Try opening the chat in a browser.'};playing=true;render();q('#cr-status').textContent=`Reading continuously · ${index+1} of ${comments.length}`;synth.speak(u)}
-      q('#cr-play').addEventListener('click',()=>{if(playing){synth.pause();playing=false;render();q('#cr-status').textContent='Paused.'}else if(synth&&synth.paused){synth.resume();playing=true;render();q('#cr-status').textContent=`Reading continuously · ${index+1} of ${comments.length}`}else if(comments.length)speakCurrent()});
-      q('#cr-stop').addEventListener('click',stop);
-      q('#cr-prev').addEventListener('click',()=>{if(index>0){stop();index--;render();q('#cr-status').textContent='Previous comment selected.'}});
-      q('#cr-next').addEventListener('click',()=>{if(index<comments.length-1){stop();index++;render();q('#cr-status').textContent='Next comment selected.'}});
-      const list=q('#cr-list');function buildList(){comments.forEach((c,i)=>{const b=document.createElement('button');b.type='button';b.className='item';const name=document.createElement('b'),body=document.createElement('span');name.textContent=`${i+1}. ${c[0]}`;body.textContent=c[1];b.append(name,body);b.addEventListener('click',()=>{stop();index=i;render();q('#cr-status').textContent='Comment selected. Tap Read continuously.'});list.append(b)});render();}
-      fetch('./comments.json').then(r=>{if(!r.ok)throw new Error('Comments unavailable');return r.json()}).then(data=>{comments=data.filter(x=>x&&x.name&&x.text).map(x=>[x.name,x.text]);q('#cr-play').disabled=!comments.length;q('.listhead .sub').textContent=`${comments.length} unique text comments and replies · 8 Nov 2026`;q('#cr-status').textContent='Tap Read continuously to start.';buildList()}).catch(()=>{q('#cr-status').textContent='The comments could not be loaded. Please refresh.'});
-    })();
+(()=>{
+  const root=document.getElementById('comment-reader');
+  const q=selector=>root.querySelector(selector);
+  const synth=window.speechSynthesis;
+  const comments=[];
+  const seen=new Set();
+  const list=q('#cr-list');
+  let index=0,playing=false,waiting=false,token=0,pendingLoads=1;
+  const initial=[["Karen Anderson","Not having rags and water"],["Jim Adamski","When homeowners break out flood light for final inspection"],["Tony Hallum","Jim Adamski punch list here we come !"],["Greg Edge","Jim Adamski during the day too smfh"],["Paul Lillyman","Jim Adamski yeah, that pissed me off too. Bloody condition wasn't lit up to that degree."],["Deborah Gross","Jim Adamski. That is crazy. I knew homeowners that would do that and one building contractor we painted for."],["Michael Didak","Jim Adamski funny but true"],["Mikey Evans","Jim Adamski had a painting company in New Zealand for 30 years we always light checked our work for imperfections customers can be so picky but never had many come backs"],["Donald Raney","Mikey Evans I can go behind anyone after they have touched up with a light and find something. But i don't because I know,it can't be perfect."],["Randy Kyle","Jim Adamski I had to revisit the backside of a toilet like 5 times forva lady once. I don't know how she could see backthere. Lol"],["Bill Davis","Jim Adamski if u do ur job properly and u have nothing to worry about"],["Lars Nelson","Jim Adamski veins be popping when that happens Homie don't play that though."],["Jamie Benko","Jim Adamski wouldn't bother you if job was done correctly. Be nothing to put painters tape on lol"],["Robert A Entel","Jim Adamski we always called that the truth finder ,after you flash them with the halogen they just see stars"],["Jenny Liske","Jim Adamski oh... and 5000 pieces of tape after the PRIME coat!!! Ugh... just don't look at stuff till AFTER I put the final coat of paint on.. OK???"],["Kevin Whitaker","Jim Adamski we had one last breakout the cop flashlight q"],["Laura Richard","Other people caulking for me"],["Don E Reaves","Popcorn celling especially when you have to repaint it and have to scrap the damn thing"],["Greg Murray","Laura Richard 200%"],["Laura Richard","Greg Murray especially when it’s the first coat of paint GIPHY"],["Neal Jocher","Laura Richard Big one right there. On a jobsite once. 4 of the paint crew in the room. Carpenter says,”I can caulk it if you want?” 4 of us at once,”NO!”"],["Matt O'Daniel","Neal Jocher never seen trim Carpenter who could finish caulk. Hollar at me if lm on job site. I'll do it"],["Oriano Guadagno","Laura Richard and filling, anything basically"],["Chris Saunders","Laura Richard I agree. One time I went to a new construction and contractor told me everything is caulked ready to go. Calk was thick, some of it wasn't even pressed in and all over hinges and walls. Top it all off the trim was even sanded. Nightmare for me and the contractor. His bill had a lot of extras added on."],["Bobbi Brandt","Laura Richard i wish there were a double like button for this"],["Laura Richard","Bobbi Brandt those of us who know how to caulk won’t let anyone else do it lol"],["Neal Jocher","Laura Richard It’s a damn art in itself. I don’t know why they call it painting sometimes. If you can’t prep you can do a lot of damage to a new build with caulk. I was on a site and this new kid caulked the new Anderson windows shut because nobody was watching him and apparently he was not vetted properly. Sealed those windows right up. Lol"],["Alan Frank","Laura Richard right, gaping or caulking as you call it is a art. I hate when people leave product over the areas it's not supposed to be, paint shows everything"],["Noel Burnett","The client looking at 1st wall and saying \"thats not the same color as the wall youre working on\" Bruhhhh This wall is WET!"],["Michael Gavin","Noel Burnett get it all the time that wall looks a different colour let it dry then they are like holding payment until it dries and then says payment sent thank you very much can’t win mate can you"]];
+
+  const clean=text=>String(text||'').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}]/gu,'').replace(/[\uFE0F\u200D]/g,'').trim();
+  const identity=text=>Array.from(text.normalize('NFKC').toLowerCase()).filter(char=>/[\p{L}\p{N}]/u.test(char)).join('');
+  function status(message){q('#cr-status').textContent=message;}
+  function countLabel(){q('.listhead .sub').textContent=`${comments.length} unique comments ready${pendingLoads?' · buffering more':''}`;}
+  function render(){
+    if(!comments.length)return;
+    const current=comments[index];
+    q('#cr-count').textContent=`Comment ${index+1} of ${comments.length}${pendingLoads?' · buffering':''}`;
+    q('#cr-author').textContent=current[0];
+    q('#cr-body').textContent=current[1];
+    q('#cr-prev').disabled=index===0;
+    q('#cr-next').disabled=index===comments.length-1;
+    q('#cr-play').disabled=false;
+    q('#cr-play').textContent=playing?'Pause':synth&&synth.paused?'Resume':'Read continuously';
+    list.querySelectorAll('button').forEach((button,i)=>button.setAttribute('aria-current',String(i===index)));
+    countLabel();
+  }
+  function add(items){
+    let added=0;
+    for(const item of items){
+      if(!item)continue;
+      const name=clean(Array.isArray(item)?item[0]:item.name||'Copied comment')||'Copied comment';
+      const body=clean(Array.isArray(item)?item[1]:item.text||item.message||'');
+      const key=identity(body);
+      if(!key||seen.has(key))continue;
+      seen.add(key);
+      comments.push([name,body]);
+      const i=comments.length-1;
+      const button=document.createElement('button');button.type='button';button.className='item';
+      const label=document.createElement('b'),text=document.createElement('span');
+      label.textContent=`${i+1}. ${name}`;text.textContent=body;
+      button.append(label,text);
+      button.addEventListener('click',()=>{stop();index=i;render();status('Comment selected. Tap Read continuously.')});
+      list.append(button);added++;
+    }
+    render();
+    if(waiting&&playing&&index<comments.length-1){waiting=false;index++;speak(false)}
+    return added;
+  }
+  function finishLoad(){
+    pendingLoads=Math.max(0,pendingLoads-1);render();
+    if(waiting&&!pendingLoads){waiting=false;playing=false;render();status('Finished all loaded comments.')}
+  }
+  function stop(){token++;if(synth)synth.cancel();playing=false;waiting=false;render();status('Stopped.')}
+  function speak(replace=true){
+    if(!comments.length)return;
+    if(!synth||!window.SpeechSynthesisUtterance){status('Speech playback is unavailable in this browser.');return}
+    if(replace)synth.cancel();
+    const current=++token;
+    const utterance=new SpeechSynthesisUtterance(`${comments[index][0]} says: ${comments[index][1]}`);
+    utterance.rate=Number(q('#cr-rate').value);utterance.lang='en-GB';
+    utterance.onend=()=>{
+      if(current!==token)return;
+      if(index<comments.length-1){index++;speak(false)}
+      else if(pendingLoads){waiting=true;status('Waiting for more comments to buffer.');render()}
+      else{playing=false;render();status('Finished all loaded comments.')}
+    };
+    utterance.onerror=()=>{if(current!==token)return;playing=false;waiting=false;render();status('Audio could not play in this browser.')};
+    playing=true;render();status(`Reading continuously · ${index+1} of ${comments.length}`);synth.speak(utterance);
+  }
+  q('#cr-play').addEventListener('click',()=>{
+    if(playing){if(!waiting)synth.pause();playing=false;render();status('Paused.')}
+    else if(synth&&synth.paused){synth.resume();playing=true;render();status(`Reading continuously · ${index+1} of ${comments.length}`)}
+    else if(waiting){playing=true;if(index<comments.length-1){waiting=false;index++;speak(false)}else if(pendingLoads)status('Waiting for more comments to buffer.');else{waiting=false;render();status('Finished all loaded comments.')}}
+    else speak();
+  });
+  q('#cr-stop').addEventListener('click',stop);
+  q('#cr-prev').addEventListener('click',()=>{if(index>0){stop();index--;render();status('Previous comment selected.')}});
+  q('#cr-next').addEventListener('click',()=>{if(index<comments.length-1){stop();index++;render();status('Next comment selected.')}});
+
+  function parse(raw){
+    const trimmed=raw.trim();
+    if(!trimmed)return [];
+    if(trimmed.startsWith('[')){
+      try {const value=JSON.parse(trimmed);if(Array.isArray(value))return value.map(item=>typeof item==='string'?{text:item}:item)}catch{}
+    }
+    return trimmed.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
+      const match=line.match(/^([^:]{2,60}):\s+(.+)$/);
+      return match?{name:match[1],text:match[2]}:{name:'Copied comment',text:line};
+    });
+  }
+  q('#cr-add').addEventListener('click',()=>{
+    const raw=q('#cr-paste').value;const items=parse(raw);
+    if(!items.length){status('Paste comments first, one per line or as a JSON array.');return}
+    pendingLoads++;render();status('Adding copied comments while playback remains available.');
+    let offset=0,added=0;
+    function batch(){
+      added+=add(items.slice(offset,offset+100));offset+=100;
+      if(offset<items.length)setTimeout(batch,0);
+      else{q('#cr-paste').value='';finishLoad();status(`Added ${added} new comments; repeated text skipped.`)}
+    }
+    batch();
+  });
+
+  add(initial);
+  status(`${comments.length} comments ready. Tap Read continuously to start.`);
+  fetch('./comments.json')
+      .then(response=>{if(!response.ok)throw new Error('Fetch failed');return response.json()})
+      .then(items=>{const added=add(items);finishLoad();status(`${comments.length} comments ready. ${added} loaded in the background.`)})
+      .catch(()=>{finishLoad();status('Saved comments are ready. More comments could not be loaded.')});
+})();
+
   </script>
 </div>
 

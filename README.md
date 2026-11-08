@@ -4,7 +4,11 @@ A mobile-friendly continuous text-to-speech reader for the public [Paintwitheroy
 
 The app captured 735 distinct Facebook entries on 8 November 2026. It plays 667 unique text comments and replies after removing 68 repeated texts (ignoring case, spacing, and punctuation). The original capture is in `data/comments-raw.json`. Facebook showed 983 in its comment counter, but the remaining entries were not verified or included. Emojis are omitted from displayed and spoken text. New comments are not fetched automatically.
 
+The phone page includes its first 30 comments in the HTML, so playback can begin as soon as the page opens. It buffers the other 637 saved comments in the background and continues playback as they arrive. Paste additional comments, one per line or as a JSON array, to add them to the listening queue without stopping playback. Duplicates are skipped. Pasted comments remain in the current page session and are lost on refresh.
+
 Audio uses the browser Speech Synthesis API. Keep the page open while listening.
 
 Deploy with `npm install` and `npm run deploy`.
+
+Run `python build_reader.py` after editing `reader.js` or the comment data. Set `INLINE_READER_PATH` to also update the Codex in-chat fragment.
 
